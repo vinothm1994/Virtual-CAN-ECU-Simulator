@@ -1,0 +1,13 @@
+# Build outputs
+/build/
+/native/build/
+.gradle/
+
+# IDE / local machine config (never commit)
+/.idea/
+*.iml
+local.properties
+
+# OS / editor
+*.log
+.DS_Store
