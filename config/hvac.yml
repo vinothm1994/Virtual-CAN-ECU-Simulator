@@ -1,0 +1,157 @@
+# Virtual HVAC ECU — UI, behaviour and transmission, all by signal name.
+# Never references CAN ids or bit positions; those live in the DBC.
+
+ecu:
+  name: HVAC
+
+can:
+  interface: vcan0
+
+# Sensible starting values so gauges/setpoints don't sit at zero.
+defaults:
+  HvacTempSetDriverReq: 22.0
+  HvacTempSetPassengerReq: 22.0
+  HvacTempSetDriver: 22.0
+  HvacTempSetPassenger: 22.0
+  HvacTempCurrentDriver: 22.0
+  HvacTempCurrentPassenger: 22.0
+  HvacFanDirectionReq: 1.0
+  HvacFanDirection: 1.0
+  HvacDisplayUnit: 48.0
+
+# ---- UI widgets. request = control writes it; feedback = control reads it back.
+ui:
+  - id: power
+    title: Power
+    widget: switch
+    request: HvacPowerOnReq
+    feedback: HvacPowerOn
+
+  - id: ac
+    title: A/C
+    widget: switch
+    request: HvacAcOnReq
+    feedback: HvacAcOn
+
+  - id: auto
+    title: Auto
+    widget: switch
+    request: HvacAutoOnReq
+    feedback: HvacAutoOn
+
+  - id: recirc
+    title: Recirculate
+    widget: switch
+    request: HvacRecircOnReq
+    feedback: HvacRecircOn
+
+  - id: dual
+    title: Dual Zone
+    widget: switch
+    request: HvacDualOnReq
+    feedback: HvacDualOn
+
+  - id: maxac
+    title: Max A/C
+    widget: switch
+    request: HvacMaxAcOnReq
+    feedback: HvacMaxAcOn
+
+  - id: defrostFront
+    title: Front Defrost
+    widget: switch
+    request: HvacDefrosterFrontReq
+    feedback: HvacDefrosterFront
+
+  - id: fanSpeed
+    title: Fan Speed
+    widget: slider
+    min: 0
+    max: 7
+    step: 1
+    request: HvacFanSpeedReq
+    feedback: HvacFanSpeed
+
+  - id: fanDirection
+    title: Air Distribution
+    widget: dropdown
+    request: HvacFanDirectionReq
+    feedback: HvacFanDirection
+
+  - id: driverTemp
+    title: Driver Temp
+    widget: temperature
+    min: 16
+    max: 30
+    step: 0.5
+    request: HvacTempSetDriverReq
+    feedback: HvacTempSetDriver
+
+  - id: passengerTemp
+    title: Passenger Temp
+    widget: temperature
+    min: 16
+    max: 30
+    step: 0.5
+    request: HvacTempSetPassengerReq
+    feedback: HvacTempSetPassenger
+
+  - id: cabinDriver
+    title: Cabin Temp (Driver)
+    widget: gauge
+    min: 0
+    max: 40
+    feedback: HvacTempCurrentDriver
+
+  - id: cabinPassenger
+    title: Cabin Temp (Passenger)
+    widget: gauge
+    min: 0
+    max: 40
+    feedback: HvacTempCurrentPassenger
+
+  - id: fanRpm
+    title: Actual Fan RPM
+    widget: gauge
+    min: 0
+    max: 4000
+    feedback: HvacActualFanRpm
+
+# ---- ECU behaviour. Requests become feedback; comfort loops ramp/derive.
+rules:
+  # Global power state.
+  - { type: mirror, from: HvacPowerOnReq, to: HvacPowerOn }
+
+  # Everything else only takes effect while powered (power OFF => all OFF/0).
+  - { type: mirror, from: HvacAcOnReq,           to: HvacAcOn,           gatedBy: HvacPowerOn }
+  - { type: mirror, from: HvacMaxAcOnReq,        to: HvacMaxAcOn,        gatedBy: HvacPowerOn }
+  - { type: mirror, from: HvacAutoOnReq,         to: HvacAutoOn,         gatedBy: HvacPowerOn }
+  - { type: mirror, from: HvacRecircOnReq,       to: HvacRecircOn,       gatedBy: HvacPowerOn }
+  - { type: mirror, from: HvacDualOnReq,         to: HvacDualOn,         gatedBy: HvacPowerOn }
+  - { type: mirror, from: HvacDefrosterFrontReq, to: HvacDefrosterFront, gatedBy: HvacPowerOn }
+  - { type: mirror, from: HvacDefrosterRearReq,  to: HvacDefrosterRear,  gatedBy: HvacPowerOn }
+  - { type: mirror, from: HvacAutoRecircOnReq,   to: HvacAutoRecircOn,   gatedBy: HvacPowerOn }
+  - { type: mirror, from: HvacFanSpeedReq,       to: HvacFanSpeed,       gatedBy: HvacPowerOn }
+  - { type: mirror, from: HvacFanDirectionReq,   to: HvacFanDirection,   gatedBy: HvacPowerOn }
+
+  # Setpoints (temperature is settable even before airflow ramps up).
+  - { type: mirror, from: HvacTempSetDriverReq,    to: HvacTempSetDriver }
+  - { type: mirror, from: HvacTempSetPassengerReq, to: HvacTempSetPassenger }
+  # Dual mode: passenger setpoint follows the driver's.
+  - { type: mirror, from: HvacTempSetDriverReq, to: HvacTempSetPassenger, onlyWhen: HvacDualOn }
+
+  # Actual fan RPM derived from the fan speed level.
+  - { type: scale, from: HvacFanSpeed, to: HvacActualFanRpm, factor: 350 }
+
+  # Cabin temperature slowly ramps toward each zone's setpoint.
+  - { type: ramp, to: HvacTempCurrentDriver,    toward: HvacTempSetDriver,    rate: 0.2 }
+  - { type: ramp, to: HvacTempCurrentPassenger, toward: HvacTempSetPassenger, rate: 0.2 }
+
+# ---- Status transmission.
+#   period_ms  -> cyclic (send every N ms)
+#   on_change  -> event-triggered (send only when the message content changes,
+#                 e.g. gear selection / indicators — not periodic)
+#   set both for a cyclic message that also pushes immediately on change.
+tx:
+  - { message: HvacStatus,       period_ms: 10000 , on_change: true }
+  - { message: HvacTemperatures, on_change: true }

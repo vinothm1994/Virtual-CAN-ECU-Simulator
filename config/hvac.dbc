@@ -1,0 +1,106 @@
+VERSION ""
+
+NS_ :
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: ECU IVI
+
+BO_ 1280 HvacStatus: 8 ECU
+ SG_ HvacPowerOn : 0|1@1+ (1,0) [0|1] "" IVI
+ SG_ HvacAcOn : 1|1@1+ (1,0) [0|1] "" IVI
+ SG_ HvacMaxAcOn : 2|1@1+ (1,0) [0|1] "" IVI
+ SG_ HvacMaxDefrostOn : 3|1@1+ (1,0) [0|1] "" IVI
+ SG_ HvacRecircOn : 4|1@1+ (1,0) [0|1] "" IVI
+ SG_ HvacAutoOn : 5|1@1+ (1,0) [0|1] "" IVI
+ SG_ HvacDualOn : 6|1@1+ (1,0) [0|1] "" IVI
+ SG_ HvacDefrosterFront : 7|1@1+ (1,0) [0|1] "" IVI
+ SG_ HvacDefrosterRear : 8|1@1+ (1,0) [0|1] "" IVI
+ SG_ HvacAutoRecircOn : 9|1@1+ (1,0) [0|1] "" IVI
+ SG_ HvacFanSpeed : 16|8@1+ (1,0) [0|255] "" IVI
+ SG_ HvacFanDirection : 24|8@1+ (1,0) [0|255] "" IVI
+ SG_ HvacActualFanRpm : 32|16@1+ (1,0) [0|65535] "rpm" IVI
+ SG_ HvacDisplayUnit : 48|8@1+ (1,0) [0|255] "" IVI
+
+BO_ 1281 HvacTemperatures: 8 ECU
+ SG_ HvacTempCurrentDriver : 0|16@1- (0.1,0) [-3276.8|3276.7] "degC" IVI
+ SG_ HvacTempCurrentPassenger : 16|16@1- (0.1,0) [-3276.8|3276.7] "degC" IVI
+ SG_ HvacTempSetDriver : 32|16@1- (0.1,0) [-3276.8|3276.7] "degC" IVI
+ SG_ HvacTempSetPassenger : 48|16@1- (0.1,0) [-3276.8|3276.7] "degC" IVI
+
+BO_ 1296 HvacControl: 8 IVI
+ SG_ HvacPowerOnReq : 0|1@1+ (1,0) [0|1] "" ECU
+ SG_ HvacAcOnReq : 1|1@1+ (1,0) [0|1] "" ECU
+ SG_ HvacMaxAcOnReq : 2|1@1+ (1,0) [0|1] "" ECU
+ SG_ HvacMaxDefrostOnReq : 3|1@1+ (1,0) [0|1] "" ECU
+ SG_ HvacRecircOnReq : 4|1@1+ (1,0) [0|1] "" ECU
+ SG_ HvacAutoOnReq : 5|1@1+ (1,0) [0|1] "" ECU
+ SG_ HvacDualOnReq : 6|1@1+ (1,0) [0|1] "" ECU
+ SG_ HvacDefrosterFrontReq : 7|1@1+ (1,0) [0|1] "" ECU
+ SG_ HvacDefrosterRearReq : 8|1@1+ (1,0) [0|1] "" ECU
+ SG_ HvacAutoRecircOnReq : 9|1@1+ (1,0) [0|1] "" ECU
+ SG_ HvacFanSpeedReq : 16|8@1+ (1,0) [0|255] "" ECU
+ SG_ HvacFanDirectionReq : 24|8@1+ (1,0) [0|255] "" ECU
+
+BO_ 1297 HvacTempControl: 8 IVI
+ SG_ HvacTempSetDriverReq : 0|16@1- (0.1,0) [-3276.8|3276.7] "degC" ECU
+ SG_ HvacTempSetPassengerReq : 16|16@1- (0.1,0) [-3276.8|3276.7] "degC" ECU
+ SG_ HvacSeatTempDriverReq : 32|8@1- (1,0) [-128|127] "" ECU
+ SG_ HvacSeatTempPassengerReq : 40|8@1- (1,0) [-128|127] "" ECU
+ SG_ HvacSteeringWheelHeatReq : 48|8@1- (1,0) [-128|127] "" ECU
+
+CM_ "HVAC CAN database modeled on AOSP VHAL types.hal HVAC_* VehicleProperty set (0x0500-0x0510). Dual-zone front (driver=ROW_1_LEFT, passenger=ROW_1_RIGHT). ECU = climate controller, IVI = Android Automotive head unit.";
+CM_ BO_ 1280 "HVAC status/feedback from climate ECU (mirrors HVAC_* READ properties)";
+CM_ BO_ 1281 "HVAC current + setpoint temperatures (HVAC_TEMPERATURE_CURRENT / HVAC_TEMPERATURE_SET)";
+CM_ BO_ 1296 "HVAC mode/fan command from IVI (mirrors HVAC_* READ_WRITE properties)";
+CM_ BO_ 1297 "HVAC temperature + seat/wheel-heat command from IVI";
+CM_ SG_ 1280 HvacPowerOn "HVAC_POWER_ON (0x0510) global HVAC power state";
+CM_ SG_ 1280 HvacAcOn "HVAC_AC_ON (0x0505)";
+CM_ SG_ 1280 HvacMaxAcOn "HVAC_MAX_AC_ON (0x0506)";
+CM_ SG_ 1280 HvacMaxDefrostOn "HVAC_MAX_DEFROST_ON (0x0507)";
+CM_ SG_ 1280 HvacRecircOn "HVAC_RECIRC_ON (0x0508)";
+CM_ SG_ 1280 HvacAutoOn "HVAC_AUTO_ON (0x050A)";
+CM_ SG_ 1280 HvacDualOn "HVAC_DUAL_ON (0x0509)";
+CM_ SG_ 1280 HvacDefrosterFront "HVAC_DEFROSTER (0x0504) front window";
+CM_ SG_ 1280 HvacDefrosterRear "HVAC_DEFROSTER (0x0504) rear window";
+CM_ SG_ 1280 HvacAutoRecircOn "HVAC_AUTO_RECIRC_ON (0x0511 in later HALs)";
+CM_ SG_ 1280 HvacFanSpeed "HVAC_FAN_SPEED (0x0500) level";
+CM_ SG_ 1280 HvacFanDirection "HVAC_FAN_DIRECTION (0x0501), VehicleHvacFanDirection enum";
+CM_ SG_ 1280 HvacActualFanRpm "HVAC_ACTUAL_FAN_SPEED_RPM (0x050F)";
+CM_ SG_ 1280 HvacDisplayUnit "HVAC_TEMPERATURE_DISPLAY_UNITS (0x050E), VehicleUnit CELSIUS=0x30 FAHRENHEIT=0x31";
+CM_ SG_ 1281 HvacTempCurrentDriver "HVAC_TEMPERATURE_CURRENT (0x0502) driver zone; operating range -40..85 degC";
+CM_ SG_ 1281 HvacTempSetDriver "HVAC_TEMPERATURE_SET (0x0503) driver zone feedback; operating range 16..32 degC";
+CM_ SG_ 1297 HvacSeatTempDriverReq "HVAC_SEAT_TEMPERATURE (0x050B) driver: <0 cool, >0 heat; operating range -3..3";
+CM_ SG_ 1297 HvacSteeringWheelHeatReq "HVAC_STEERING_WHEEL_HEAT (0x050D): <0 cool, >0 heat; operating range -3..3";
+
+VAL_ 1280 HvacFanDirection 0 "unknown" 1 "face" 2 "floor" 3 "face_and_floor" 4 "defrost" 6 "defrost_and_floor" ;
+VAL_ 1296 HvacFanDirectionReq 0 "unknown" 1 "face" 2 "floor" 3 "face_and_floor" 4 "defrost" 6 "defrost_and_floor" ;
+VAL_ 1280 HvacDisplayUnit 48 "celsius" 49 "fahrenheit" ;
