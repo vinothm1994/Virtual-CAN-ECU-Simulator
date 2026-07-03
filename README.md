@@ -171,9 +171,31 @@ The only path not exercised end-to-end in the build environment is the live
 SocketCAN wire I/O, because creating `vcan0` needs root — run the
 [Live bus test](#live-bus-test) to cover it.
 
+## Running on Windows (PCAN-USB)
+
+The UI/logic is pure JVM and runs on Windows unchanged; the CAN transport uses
+**PEAK PCAN-Basic** instead of SocketCAN. The whole native bridge is shipped
+prebuilt in `native/prebuilt/windows-x86_64/` (cross-built with llvm-mingw), so
+you only need a **JDK 17+** to run — no C++ toolchain.
+
+1. Install the **PEAK driver** (provides `PCANBasic.dll`) and plug in the PCAN-USB.
+2. In `config/hvac.yml` set the channel + bitrate:
+   ```yaml
+   can:
+     interface: PCAN_USBBUS1
+     baudrate: 500K
+   ```
+3. Run the app, then **Connect** → **Start ECU**. Inject requests / watch status
+   with **PCAN-View** or a second CAN node.
+
+> Windows has no virtual CAN, so live CAN needs the real PCAN-USB (or a PCAN-View
+> loopback with two channels). The UI/logic runs fine without hardware.
+> The Windows DLLs are cross-built on Linux and validated as PE (arch + JNI
+> exports); on-device run testing is done on the Windows machine.
+
 ## Notes / limitations (MVP)
 
-- SocketCAN only on Linux; the Windows PCAN driver is a stub behind the same
-  `CanDriver` interface.
+- CAN transports: **SocketCAN** (Linux) and **PCAN-Basic** (Windows). Classic
+  CAN only (8-byte frames) — no CAN-FD.
 - Configuration is hardcoded in `config/AppConfig.kt` (no file dialogs / project
   management) — by design for the MVP.

@@ -51,6 +51,8 @@ data class TxSpec(
 data class SimConfig(
     val ecuName: String,
     val canInterface: String?,
+    /** PCAN bitrate name (Windows), e.g. "500K"; ignored by SocketCAN. */
+    val canBaudrate: String?,
     val defaults: Map<String, Double>,
     val widgets: List<WidgetSpec>,
     val rules: List<RuleSpec>,
@@ -105,6 +107,7 @@ data class SimConfig(
             return SimConfig(
                 ecuName = ecu["name"].str("ECU"),
                 canInterface = can["interface"] as? String,
+                canBaudrate = can["baudrate"] as? String,
                 defaults = defaults,
                 widgets = widgets,
                 rules = rules,

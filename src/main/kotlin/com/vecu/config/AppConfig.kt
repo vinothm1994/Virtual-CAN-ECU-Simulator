@@ -13,8 +13,11 @@ object AppConfig {
     /** YAML: UI widgets, request/feedback bindings, rules, periodic TX. */
     const val YAML_FILE = "config/hvac.yml"
 
-    /** Fallback CAN interface if the YAML does not specify one. */
+    /** Fallback CAN interface if the YAML does not specify one (Linux SocketCAN). */
     const val CAN_INTERFACE = "vcan0"
+
+    /** Fallback PCAN bitrate on Windows if the YAML does not specify one. */
+    const val CAN_BAUDRATE = "500K"
 
     /** Rule-engine / state tick period. Ramp rates in the YAML are per tick. */
     const val TICK_INTERVAL_MS = 100L

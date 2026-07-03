@@ -6,37 +6,55 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 
 # --- dbcppp: vendored prebuilt library, in-tree (native/prebuilt) ---
-# Self-contained: no external prefix required. Headers are
-# arch-neutral (shared); the .so is picked per target arch so the same tree
-# builds on an x86_64 desktop and an aarch64 Pi.
+# Self-contained: no external prefix required. Headers are arch-neutral (shared);
+# the library is picked per OS+arch so the same tree builds on an x86_64 Linux
+# desktop, an aarch64 Pi, and (cross-)builds for Windows x86_64.
 # Override with -DDBCPPP_PREFIX=/path/to/prefix to use a different copy.
 set(DBCPPP_PREFIX "${CMAKE_SOURCE_DIR}/prebuilt"
-    CACHE PATH "Prefix with dbcppp headers (include/) + per-arch libs (linux-*/)")
+    CACHE PATH "Prefix with dbcppp headers (include/) + per-platform libs")
 get_filename_component(DBCPPP_PREFIX "${DBCPPP_PREFIX}" ABSOLUTE)
 
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
-    set(DBCPPP_ARCH "linux-aarch64")
+if(WIN32)
+    set(DBCPPP_OSARCH "windows-x86_64")
+elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64")
+    set(DBCPPP_OSARCH "linux-aarch64")
 elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
-    set(DBCPPP_ARCH "linux-x86_64")
+    set(DBCPPP_OSARCH "linux-x86_64")
 else()
-    message(FATAL_ERROR "no vendored dbcppp for arch '${CMAKE_SYSTEM_PROCESSOR}' "
-                        "(add native/prebuilt/linux-<arch>/libdbcppp.so)")
+    message(FATAL_ERROR "no vendored dbcppp for '${CMAKE_SYSTEM_PROCESSOR}' "
+                        "(add native/prebuilt/<os>-<arch>/)")
 endif()
 
-find_path(DBCPPP_INCLUDE_DIR dbcppp/Network.h HINTS "${DBCPPP_PREFIX}/include" REQUIRED)
+# CMAKE_FIND_ROOT_PATH_BOTH so cross builds (e.g. MinGW) still see the in-tree
+# prefix, which lives outside the toolchain sysroot.
+find_path(DBCPPP_INCLUDE_DIR dbcppp/Network.h
+    HINTS "${DBCPPP_PREFIX}/include" NO_DEFAULT_PATH CMAKE_FIND_ROOT_PATH_BOTH REQUIRED)
 find_library(DBCPPP_LIB dbcppp
-    HINTS "${DBCPPP_PREFIX}/${DBCPPP_ARCH}" NO_DEFAULT_PATH REQUIRED)
+    HINTS "${DBCPPP_PREFIX}/${DBCPPP_OSARCH}" NO_DEFAULT_PATH CMAKE_FIND_ROOT_PATH_BOTH REQUIRED)
 get_filename_component(DBCPPP_LIB_DIR "${DBCPPP_LIB}" DIRECTORY)
-# Every libdbcppp.so* (SONAME file + symlink) to place beside the JNI lib.
-file(GLOB DBCPPP_RUNTIME "${DBCPPP_PREFIX}/${DBCPPP_ARCH}/libdbcppp.so*")
-message(STATUS "dbcppp: ${DBCPPP_LIB} (arch ${DBCPPP_ARCH})")
+# Runtime libraries to place beside the JNI lib (SONAME .so + symlink, or .dll).
+file(GLOB DBCPPP_RUNTIME
+    "${DBCPPP_PREFIX}/${DBCPPP_OSARCH}/libdbcppp.so*"
+    "${DBCPPP_PREFIX}/${DBCPPP_OSARCH}/libdbcppp.dll")
+message(STATUS "dbcppp: ${DBCPPP_LIB} (${DBCPPP_OSARCH})")
 
-# --- JNI: from the JDK that drives the build (system JDK 11) ---
-find_package(JNI REQUIRED)
+# --- JNI headers ---
+# Normally from the JDK that drives the build. For cross-compiling (e.g. a
+# Windows DLL from Linux) pass -DVECU_JNI_INCLUDE="<jdk>/include;<jdk>/include/win32".
+if(DEFINED VECU_JNI_INCLUDE)
+    set(JNI_INCLUDE_DIRS ${VECU_JNI_INCLUDE})
+else()
+    find_package(JNI REQUIRED)
+endif()
 
-add_library(vecunative SHARED
-    src/dbc_jni.cpp
-    src/socketcan_jni.cpp)
+# CAN transport is OS-specific: SocketCAN on Linux, PCAN-Basic on Windows.
+if(WIN32)
+    set(CAN_SOURCE src/pcan_jni.cpp)
+else()
+    set(CAN_SOURCE src/socketcan_jni.cpp)
+endif()
+
+add_library(vecunative SHARED src/dbc_jni.cpp ${CAN_SOURCE})
 
 target_include_directories(vecunative PRIVATE
     ${DBCPPP_INCLUDE_DIR}
@@ -44,14 +62,19 @@ target_include_directories(vecunative PRIVATE
 
 target_link_libraries(vecunative PRIVATE ${DBCPPP_LIB})
 
-# Runtime search path: look next to the JNI lib first ($ORIGIN), then the
-# in-tree prefix. So the JVM loads libdbcppp.so with no LD_LIBRARY_PATH, and the
-# build output dir is relocatable (e.g. bundled into a package).
-set_target_properties(vecunative PROPERTIES
-    BUILD_RPATH "$ORIGIN;${DBCPPP_LIB_DIR}"
-    INSTALL_RPATH "$ORIGIN;${DBCPPP_LIB_DIR}")
+if(WIN32)
+    # Emit vecunative.dll (not libvecunative.dll); the dbcppp dependency is
+    # resolved at load time by NativeLoader (loads dbcppp.dll first).
+    set_target_properties(vecunative PROPERTIES PREFIX "")
+else()
+    # Look next to the JNI lib first ($ORIGIN), then the in-tree prefix, so the
+    # JVM loads libdbcppp.so with no LD_LIBRARY_PATH and the dir is relocatable.
+    set_target_properties(vecunative PROPERTIES
+        BUILD_RPATH "$ORIGIN;${DBCPPP_LIB_DIR}"
+        INSTALL_RPATH "$ORIGIN;${DBCPPP_LIB_DIR}")
+endif()
 
-# Copy libdbcppp.so* next to libvecunative.so so $ORIGIN resolves it.
+# Bundle the dbcppp runtime lib next to the JNI lib.
 add_custom_command(TARGET vecunative POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_if_different ${DBCPPP_RUNTIME} $<TARGET_FILE_DIR:vecunative>
-    COMMENT "Bundling libdbcppp.so next to libvecunative.so")
+    COMMENT "Bundling dbcppp runtime next to the JNI library")

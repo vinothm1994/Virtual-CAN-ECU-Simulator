@@ -2,6 +2,7 @@ package com.vecu.viewmodel
 
 import com.vecu.can.CanDriver
 import com.vecu.can.CanFrame
+import com.vecu.can.Pcan
 import com.vecu.can.PcanDriver
 import com.vecu.can.SocketCanDriver
 import com.vecu.config.AppConfig
@@ -77,7 +78,18 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
         log("INFO", "Property model built: ${_properties.value.size} widgets")
 
         val iface = config.canInterface ?: AppConfig.CAN_INTERFACE
-        driver = if (isWindows()) PcanDriver() else SocketCanDriver(iface)
+        driver = if (isWindows()) {
+            // On Windows the interface names a PCAN channel; a Linux vcan name
+            // falls back to bus 1 so the app still starts.
+            val chName = if (iface.uppercase().startsWith("PCAN_")) iface else "PCAN_USBBUS1"
+            PcanDriver(
+                channel = Pcan.channel(chName),
+                baudrate = Pcan.baudrate(config.canBaudrate ?: AppConfig.CAN_BAUDRATE),
+                channelName = chName,
+            )
+        } else {
+            SocketCanDriver(iface)
+        }
         driver.setListener(::onFrameReceived)
 
         scheduler = TxScheduler(scope, config.tx, ::onScheduledTx)
