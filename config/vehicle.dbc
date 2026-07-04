@@ -63,4 +63,5 @@ CM_ SG_ 260 FuelLevel "Tank fuel level; operating range 0..100 %";
 CM_ SG_ 272 DriveModeReq "Requested drive mode";
 
 VAL_ 256 DriveModeState 0 "normal" 1 "eco" 2 "sport" 3 "snow" ;
+VAL_ 258 GearPosition 0 "P" 1 "R" 2 "N" 3 "D" 4 "S" 5 "L" ;
 VAL_ 272 DriveModeReq 0 "normal" 1 "eco" 2 "sport" 3 "snow" ;
