@@ -7,56 +7,39 @@ import com.vecu.can.PcanDriver
 import com.vecu.can.SocketCanDriver
 import com.vecu.config.AppConfig
 import com.vecu.config.EcuProfile
-import com.vecu.core.config.SimConfig
-import com.vecu.core.ecu.VirtualEcu
+import com.vecu.core.ecu.EcuInstance
 import com.vecu.core.property.Property
-import com.vecu.core.property.PropertyManager
-import com.vecu.core.rule.RuleEngine
-import com.vecu.core.scheduler.TxScheduler
-import com.vecu.dbc.DbcService
-import com.vecu.dbc.DecodedMessage
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
 import java.util.concurrent.atomic.AtomicLong
 
 /**
- * Application controller (MVVM). Loads the DBC + YAML, wires the Virtual ECU to
- * the CAN driver, and exposes immutable [StateFlow]s for Compose to observe.
- * Owns all lifecycle: connect/disconnect, start/stop ECU.
+ * Application controller (MVVM). Runs **every** ECU profile concurrently on one
+ * shared CAN bus (each an [EcuInstance]); the toolbar selects which one's UI is
+ * shown — switching is a view change, nothing stops. The CAN monitor is global
+ * (whole-bus). Exposes immutable [StateFlow]s for Compose to observe.
  */
 class SimulatorViewModel(private val scope: CoroutineScope) {
-    // The active profile's components; rebuilt by buildProfile() on a switch.
-    private lateinit var dbc: DbcService
-    private lateinit var ecu: VirtualEcu
-    private lateinit var scheduler: TxScheduler
-    private lateinit var driver: CanDriver
-    private lateinit var config: SimConfig
+    /** ECU profiles (HVAC, Vehicle, ...) — all run at once; one is viewed. */
+    val profiles: List<EcuProfile> = AppConfig.PROFILES
 
-    /** Messages configured to transmit on-change (non-cyclic). */
-    private var onChangeMessages: List<String> = emptyList()
-    /** Last transmitted content per on-change message, for change detection. */
-    private val lastSentValues = HashMap<String, Map<String, Double>>()
+    private val instances: List<EcuInstance>
+    private lateinit var driver: CanDriver
+    private lateinit var activeInstance: EcuInstance
 
     private val seq = AtomicLong(0)
     private val logLock = Any()
     private val timeFmt = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
 
-    /** ECU profiles selectable from the toolbar (HVAC, Vehicle, ...). */
-    val profiles: List<EcuProfile> = AppConfig.PROFILES
-
     // --- observable state ---
     private val _properties = MutableStateFlow<List<Property>>(emptyList())
     val properties: StateFlow<List<Property>> = _properties
 
-    // Decoupled from the ECU instance so it survives a profile switch.
     private val _signalValues = MutableStateFlow<Map<String, Double>>(emptyMap())
     val signalValues: StateFlow<Map<String, Double>> = _signalValues
 
@@ -72,35 +55,21 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
     private val _activeProfile = MutableStateFlow(AppConfig.PROFILES[AppConfig.DEFAULT_PROFILE])
     val activeProfile: StateFlow<EcuProfile> = _activeProfile
 
-    private var tickJob: Job? = null
     private var stateCollectJob: Job? = null
 
     init {
-        buildProfile(AppConfig.PROFILES[AppConfig.DEFAULT_PROFILE])
-        log("INFO", "Ready. Driver: ${driver.name}. Press Connect, then Start ECU.")
-    }
+        // One instance per profile; they transmit via the shared driver (onInstanceTx),
+        // gated on the bus being open.
+        instances = profiles.map { EcuInstance(it, scope, { driver.isOpen }, ::onInstanceTx) }
 
-    /** Tears down the current ECU (if any) and builds everything for [profile]. */
-    private fun buildProfile(profile: EcuProfile) {
-        stateCollectJob?.cancel()
-        if (::dbc.isInitialized) dbc.close()
-
-        dbc = DbcService().apply { load(profile.dbc) }
-        config = SimConfig.load(profile.yaml)
-        _properties.value = PropertyManager.build(config.widgets, dbc.schema)
-        ecu = VirtualEcu(dbc.schema, RuleEngine(config.rules), config.defaults)
-        onChangeMessages = config.tx.filter { it.onChange }.map { it.message }
-        lastSentValues.clear()
-        scheduler = TxScheduler(scope, config.tx, ::onScheduledTx)
-
-        val iface = config.canInterface ?: AppConfig.CAN_INTERFACE
+        // A single shared bus for all ECUs — use the first profile's settings.
+        val first = instances.first()
+        val iface = first.config.canInterface ?: AppConfig.CAN_INTERFACE
         driver = if (isWindows()) {
-            // On Windows the interface names a PCAN channel; a Linux vcan name
-            // falls back to bus 1 so the app still starts.
             val chName = if (iface.uppercase().startsWith("PCAN_")) iface else "PCAN_USBBUS1"
             PcanDriver(
                 channel = Pcan.channel(chName),
-                baudrate = Pcan.baudrate(config.canBaudrate ?: AppConfig.CAN_BAUDRATE),
+                baudrate = Pcan.baudrate(first.config.canBaudrate ?: AppConfig.CAN_BAUDRATE),
                 channelName = chName,
             )
         } else {
@@ -108,36 +77,42 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
         }
         driver.setListener(::onFrameReceived)
 
-        // Mirror the active ECU's signal state into the exposed flow.
-        stateCollectJob = scope.launch { ecu.state.flow.collect { _signalValues.value = it } }
-
-        _activeProfile.value = profile
-        _status.value = SimStatus(driverName = driver.name, ecuName = config.ecuName)
-        log(
-            "INFO",
-            "Loaded ${profile.name} ECU: ${profile.dbc} (${dbc.schema.messages.size} messages), " +
-                "${_properties.value.size} widgets",
-        )
+        activeInstance = instances[AppConfig.DEFAULT_PROFILE]
+        showActive()
+        _status.value = SimStatus(driverName = driver.name, ecuName = activeInstance.name, ecuCount = instances.size)
+        log("INFO", "Loaded ${instances.size} ECUs on ${driver.name}:")
+        instances.forEach {
+            log("INFO", "  ${it.name}: ${it.profile.dbc} (${it.messageCount} messages), ${it.properties.size} widgets")
+        }
+        log("INFO", "Press Connect, then Start ECU.")
     }
 
-    /** Switches the simulated ECU, stopping and disconnecting the current one. */
+    // --- view selection (non-destructive: all ECUs keep running) ---
+
     fun selectProfile(name: String) {
-        if (name == _activeProfile.value.name) return
-        val profile = profiles.firstOrNull { it.name == name } ?: return
-        stopEcu()
-        disconnect()
-        buildProfile(profile)
+        if (name == activeInstance.profile.name) return
+        val inst = instances.firstOrNull { it.profile.name == name } ?: return
+        activeInstance = inst
+        showActive()
+        _status.value = _status.value.copy(ecuName = inst.name)
+        log("INFO", "Viewing ${inst.name} ECU")
     }
 
-    // --- toolbar actions ---
+    private fun showActive() {
+        _properties.value = activeInstance.properties
+        _activeProfile.value = activeInstance.profile
+        stateCollectJob?.cancel()
+        // collect() emits the current value immediately, so the view updates at once.
+        stateCollectJob = scope.launch { activeInstance.state.collect { _signalValues.value = it } }
+    }
+
+    // --- toolbar actions (bus + all ECUs) ---
 
     fun connect() {
         if (_status.value.connected) return
         try {
             driver.open()
-            // Force a fresh baseline so every on-change message is (re)sent once
-            // on the next tick after connecting.
-            lastSentValues.clear()
+            instances.forEach { it.clearTxBaseline() } // resend on-change baselines after connect
             _status.value = _status.value.copy(connected = true, lastError = null)
             log("INFO", "CAN connected: ${driver.name}")
         } catch (e: Throwable) {
@@ -155,25 +130,16 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
 
     fun startEcu() {
         if (_status.value.ecuRunning) return
+        instances.forEach { it.start() }
         _status.value = _status.value.copy(ecuRunning = true)
-        tickJob = scope.launch(Dispatchers.Default) {
-            while (isActive) {
-                ecu.tick()
-                evaluateOnChange()
-                delay(AppConfig.TICK_INTERVAL_MS)
-            }
-        }
-        scheduler.start()
-        log("INFO", "Virtual ECU started (tick ${AppConfig.TICK_INTERVAL_MS} ms)")
+        log("INFO", "Started ${instances.size} ECUs (tick ${AppConfig.TICK_INTERVAL_MS} ms)")
     }
 
     fun stopEcu() {
         if (!_status.value.ecuRunning) return
+        instances.forEach { it.stop() }
         _status.value = _status.value.copy(ecuRunning = false)
-        tickJob?.cancel()
-        tickJob = null
-        scheduler.stop()
-        log("INFO", "Virtual ECU stopped")
+        log("INFO", "Stopped all ECUs")
     }
 
     fun clearLog() {
@@ -181,61 +147,48 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
         _appLog.value = emptyList()
     }
 
-    /** A UI control moved: inject the request signal, as if the IVI sent it. */
+    /** A UI control moved on the active ECU: inject its request signal. */
     fun onWidgetChange(property: Property, value: Double) {
         val signal = property.requestSignal ?: return
-        ecu.setSignal(signal, value)
-        log("DEBUG", "Property '${property.id}' -> $signal = ${fmt(value)}")
+        activeInstance.setSignal(signal, value)
+        log("DEBUG", "[${activeInstance.name}] '${property.id}' -> $signal = ${fmt(value)}")
     }
 
     fun shutdown() {
         stopEcu()
         disconnect()
         stateCollectJob?.cancel()
-        dbc.close()
+        instances.forEach { it.close() }
     }
 
-    // --- CAN paths ---
+    // --- CAN paths (shared bus) ---
 
     private fun onFrameReceived(frame: CanFrame) {
-        val decoded: DecodedMessage? = dbc.decode(frame)
-        if (decoded != null) {
-            ecu.onFrame(decoded)
-            addCanRow(Direction.RX, frame, decoded.message.name, decoded.values)
-        } else {
-            addCanRow(Direction.RX, frame, "(unknown)", emptyMap())
+        // Disjoint DBC id ranges, so at most one ECU claims a given frame.
+        for (inst in instances) {
+            val decoded = inst.onFrame(frame)
+            if (decoded != null) {
+                addCanRow(Direction.RX, frame, decoded.message.name, decoded.values, inst.name)
+                return
+            }
         }
+        addCanRow(Direction.RX, frame, "(unknown)", emptyMap(), null)
     }
 
-    private fun onScheduledTx(message: String) {
-        if (!driver.isOpen) return
-        val values = ecu.buildTx(message)
-        val frame = dbc.encode(message, values) ?: return
+    private fun onInstanceTx(inst: EcuInstance, frame: CanFrame, message: String, values: Map<String, Double>) {
         driver.send(frame)
-        lastSentValues[message] = values // keep on-change baseline in sync with cyclic sends
-        addCanRow(Direction.TX, frame, message, values)
-    }
-
-    /**
-     * Transmit each on-change message whose encoded content changed since it was
-     * last sent. Called every tick, so a UI/rule-driven change reaches the bus
-     * within one tick — the model for non-cyclic signals like gear selection.
-     */
-    private fun evaluateOnChange() {
-        if (onChangeMessages.isEmpty() || !driver.isOpen) return
-        for (message in onChangeMessages) {
-            val values = ecu.buildTx(message)
-            if (lastSentValues[message] == values) continue
-            lastSentValues[message] = values
-            val frame = dbc.encode(message, values) ?: continue
-            driver.send(frame)
-            addCanRow(Direction.TX, frame, message, values)
-        }
+        addCanRow(Direction.TX, frame, message, values, inst.name)
     }
 
     // --- logging ---
 
-    private fun addCanRow(dir: Direction, frame: CanFrame, message: String, values: Map<String, Double>) {
+    private fun addCanRow(
+        dir: Direction,
+        frame: CanFrame,
+        message: String,
+        values: Map<String, Double>,
+        ecu: String?,
+    ) {
         val row = CanLogEntry(
             seq = seq.incrementAndGet(),
             time = LocalTime.now().format(timeFmt),
@@ -244,8 +197,9 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
             message = message,
             dataHex = frame.hex(),
             decoded = values.entries.map { it.key to it.value },
+            ecu = ecu,
         )
-        // Cyclic scheduler, on-change tick loop and RX thread all write here.
+        // Every ECU's TX, plus the RX thread, write here concurrently.
         synchronized(logLock) { _canLog.value = (_canLog.value + row).takeLast(AppConfig.MAX_LOG_ROWS) }
     }
 
@@ -258,6 +212,4 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
 
     private fun isWindows(): Boolean =
         System.getProperty("os.name").orEmpty().lowercase().contains("win")
-
-    companion object
 }

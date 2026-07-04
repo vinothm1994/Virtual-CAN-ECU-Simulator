@@ -52,6 +52,10 @@ private fun CanRow(e: CanLogEntry) {
             Text(e.idHex, fontSize = 12.sp, fontFamily = FontFamily.Monospace, color = Color(0xFFD4DAE0), fontWeight = FontWeight.Bold)
             Spacer(Modifier.width(8.dp))
             Text(e.message, fontSize = 12.sp, color = Color(0xFF9FB0BC))
+            e.ecu?.let {
+                Spacer(Modifier.width(6.dp))
+                Text("· $it", fontSize = 11.sp, color = Color(0xFF6E7B86))
+            }
         }
         Text(
             e.dataHex,

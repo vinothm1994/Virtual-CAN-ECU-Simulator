@@ -82,7 +82,11 @@ fun Toolbar(
 
         StatusDot("CAN", status.connected, status.driverName)
         Spacer(Modifier.width(12.dp))
-        StatusDot("ECU", status.ecuRunning, if (status.ecuRunning) "running" else "stopped")
+        StatusDot(
+            "ECU",
+            status.ecuRunning,
+            if (status.ecuRunning) "running (${status.ecuCount})" else "stopped",
+        )
 
         status.lastError?.let {
             Spacer(Modifier.width(12.dp))

@@ -12,6 +12,8 @@ data class CanLogEntry(
     val message: String,
     val dataHex: String,
     val decoded: List<Pair<String, Double>>,
+    /** Owning ECU (which profile's DBC matched); null for unknown frames. */
+    val ecu: String? = null,
 )
 
 /** One row in the application log. */
@@ -26,6 +28,8 @@ data class LogEntry(
 data class SimStatus(
     val connected: Boolean = false,
     val ecuRunning: Boolean = false,
+    /** Number of ECUs running concurrently on the shared bus. */
+    val ecuCount: Int = 0,
     val driverName: String = "",
     val ecuName: String = "",
     val lastError: String? = null,

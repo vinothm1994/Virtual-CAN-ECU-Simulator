@@ -2,10 +2,13 @@ package com.vecu
 
 import com.vecu.config.AppConfig
 import com.vecu.core.config.SimConfig
+import com.vecu.core.ecu.EcuInstance
 import com.vecu.core.ecu.VirtualEcu
 import com.vecu.core.property.PropertyManager
 import com.vecu.core.rule.RuleEngine
 import com.vecu.dbc.DbcService
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 
 /**
  * Headless end-to-end check of the DBC + rules + encode/decode pipeline — no
@@ -31,6 +34,19 @@ fun main() {
             "${d.schema.messages.size} msgs, ${props.size} widgets",
         )
         d.close()
+    }
+
+    // Multi-ECU routing: concurrent instances each handle only their own DBC's
+    // frames (this is the "run all, view one" fan-out).
+    run {
+        val scope = CoroutineScope(Dispatchers.Default)
+        val hvacInst = EcuInstance(AppConfig.PROFILES.first { it.name == "HVAC" }, scope, { false }, { _, _, _, _ -> })
+        val vehInst = EcuInstance(AppConfig.PROFILES.first { it.name == "Vehicle" }, scope, { false }, { _, _, _, _ -> })
+        val hvacFrame = hvacInst.dbc.encode("HvacControl", mapOf("HvacAcOnReq" to 1.0))!!
+        check("HVAC instance routes HvacControl", hvacInst.onFrame(hvacFrame)?.message?.name == "HvacControl")
+        check("Vehicle instance ignores HvacControl", vehInst.onFrame(hvacFrame) == null)
+        hvacInst.close()
+        vehInst.close()
     }
 
     // The rest of the checks exercise the HVAC profile in depth.

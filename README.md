@@ -6,9 +6,12 @@ updates a dynamically generated UI, and transmits status frames back.
 
 An ECU is defined entirely by a **DBC** (message/signal layout) plus a **YAML**
 (widgets, rules, periodic TX) — no code is ECU-specific. The app ships two
-**profiles**, **HVAC** and **Vehicle**, switchable from the toolbar; adding a
-Cluster / BCM / Gateway / Seats ECU is just another `(dbc, yaml)` pair in
-`AppConfig.PROFILES`.
+**profiles**, **HVAC** and **Vehicle**. **All profiles run concurrently** on one
+shared bus (each decodes only its own DBC's messages and transmits only its own
+status); the toolbar dropdown just selects which one's UI you *view* — switching
+is instant and stops nothing. The **CAN monitor is global** (whole bus, each row
+tagged with its ECU). Adding a Cluster / BCM / Gateway / Seats ECU is just
+another `(dbc, yaml)` pair in `AppConfig.PROFILES`.
 
 > **Status:** MVP complete and verified — native JNI bridge, headless pipeline
 > self-test (14/14), and the Compose UI all run. The screenshot below is the
