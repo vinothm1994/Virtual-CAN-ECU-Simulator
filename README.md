@@ -14,7 +14,7 @@ tagged with its ECU). Adding a Cluster / BCM / Gateway / Seats ECU is just
 another `(dbc, yaml)` pair in `AppConfig.PROFILES`.
 
 > **Status:** working and verified end-to-end — native JNI bridge, headless
-> self-test (18 checks), the Compose UI, and **live SocketCAN on `vcan0`** (both
+> self-test (20 checks), the Compose UI, and **live SocketCAN on `vcan0`** (both
 > ECUs on one bus). Runs on Linux (SocketCAN) and Windows (PCAN-USB).
 
 ![HVAC ECU](docs/screenshot.png)
@@ -236,7 +236,7 @@ On-change messages are (re)sent once as a baseline right after **Connect**.
 
 All passing:
 
-- **`./gradlew selfTest`** (18 checks) — every profile loads; multi-ECU routing
+- **`./gradlew selfTest`** (20 checks) — every profile loads; multi-ECU routing
   (HVAC handles `HvacControl`, Vehicle ignores it); property build; dropdown
   enums from the DBC; mirror/scale/ramp rules; ramp-to-setpoint; encode/decode
   round-trip; power-off gating.
