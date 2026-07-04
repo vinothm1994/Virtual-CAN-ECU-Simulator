@@ -3,6 +3,7 @@ package com.vecu.ui
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -37,6 +38,13 @@ fun Toolbar(
     profiles: List<String>,
     activeProfile: String,
     onSelectProfile: (String) -> Unit,
+    interfaces: List<String>,
+    canInterface: String,
+    onSelectInterface: (String) -> Unit,
+    baudrate: String,
+    baudrates: List<String>,
+    onSelectBaudrate: (String) -> Unit,
+    busEditable: Boolean,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onStart: () -> Unit,
@@ -59,6 +67,11 @@ fun Toolbar(
         Spacer(Modifier.width(4.dp))
 
         ProfileSelector(profiles, activeProfile, onSelectProfile)
+        Spacer(Modifier.width(4.dp))
+
+        // CAN bus selection (editable only while disconnected).
+        DropdownField(canInterface, interfaces, onSelectInterface, busEditable)
+        DropdownField(baudrate, baudrates, onSelectBaudrate, busEditable)
         Spacer(Modifier.width(4.dp))
 
         if (status.connected) {
@@ -107,6 +120,32 @@ private fun ProfileSelector(profiles: List<String>, active: String, onSelect: (S
                     text = { Text(name) },
                     onClick = {
                         onSelect(name)
+                        expanded = false
+                    },
+                )
+            }
+        }
+    }
+}
+
+/** Compact dropdown for a single value (CAN interface / bitrate). Greyed when disabled. */
+@Composable
+private fun DropdownField(value: String, options: List<String>, onSelect: (String) -> Unit, enabled: Boolean) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(
+            onClick = { expanded = true },
+            enabled = enabled,
+            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 6.dp),
+        ) {
+            Text("$value  ▾", fontSize = 12.sp, fontFamily = FontFamily.Monospace)
+        }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            options.forEach { opt ->
+                DropdownMenuItem(
+                    text = { Text(opt, fontFamily = FontFamily.Monospace) },
+                    onClick = {
+                        onSelect(opt)
                         expanded = false
                     },
                 )

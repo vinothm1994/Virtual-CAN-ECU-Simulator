@@ -91,8 +91,9 @@ src/main/kotlin/com/vecu/
 ```
 
 On startup it loads the DBC + YAML, builds the property model, generates the UI,
-and is ready. Use the toolbar: **Connect** (open CAN) → **Start ECU** (run rules
-+ periodic TX).
+and is ready. In the toolbar, pick the **CAN interface** + **bitrate** (a shared
+bus for all ECUs; detected SocketCAN devices on Linux, PCAN channels on Windows),
+then **Connect** → **Start ECU** (run rules + periodic TX).
 
 ### Headless self-test (no CAN, no display)
 
@@ -182,14 +183,10 @@ prebuilt in `native/prebuilt/windows-x86_64/` (cross-built with llvm-mingw), so
 you only need a **JDK 17+** to run — no C++ toolchain.
 
 1. Install the **PEAK driver** (provides `PCANBasic.dll`) and plug in the PCAN-USB.
-2. In `config/hvac.yml` set the channel + bitrate:
-   ```yaml
-   can:
-     interface: PCAN_USBBUS1
-     baudrate: 500K
-   ```
-3. Run the app, then **Connect** → **Start ECU**. Inject requests / watch status
-   with **PCAN-View** or a second CAN node.
+2. Run the app; in the toolbar pick the channel (e.g. `PCAN_USBBUS1`) and bitrate
+   (e.g. `500K`) from the CAN interface / bitrate dropdowns.
+3. **Connect** → **Start ECU**. Inject requests / watch status with **PCAN-View**
+   or a second CAN node.
 
 > Windows has no virtual CAN, so live CAN needs the real PCAN-USB (or a PCAN-View
 > loopback with two channels). The UI/logic runs fine without hardware.

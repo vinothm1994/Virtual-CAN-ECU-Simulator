@@ -50,9 +50,6 @@ data class TxSpec(
 /** The whole YAML config: what to show, how the ECU behaves, what it transmits. */
 data class SimConfig(
     val ecuName: String,
-    val canInterface: String?,
-    /** PCAN bitrate name (Windows), e.g. "500K"; ignored by SocketCAN. */
-    val canBaudrate: String?,
     val defaults: Map<String, Double>,
     val widgets: List<WidgetSpec>,
     val rules: List<RuleSpec>,
@@ -65,7 +62,6 @@ data class SimConfig(
                 ?: error("empty YAML: $path")
 
             val ecu = root["ecu"] as? Map<String, Any?> ?: emptyMap()
-            val can = root["can"] as? Map<String, Any?> ?: emptyMap()
 
             val defaults = (root["defaults"] as? Map<Any?, Any?> ?: emptyMap())
                 .entries.associate { it.key.toString() to (it.value as Number).toDouble() }
@@ -106,8 +102,6 @@ data class SimConfig(
 
             return SimConfig(
                 ecuName = ecu["name"].str("ECU"),
-                canInterface = can["interface"] as? String,
-                canBaudrate = can["baudrate"] as? String,
                 defaults = defaults,
                 widgets = widgets,
                 rules = rules,

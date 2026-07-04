@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -30,6 +31,9 @@ private val DividerColor = Color(0xFF0B0E11)
 fun App(vm: SimulatorViewModel) {
     val status by vm.status.collectAsState()
     val activeProfile by vm.activeProfile.collectAsState()
+    val canInterface by vm.canInterface.collectAsState()
+    val canBaudrate by vm.canBaudrate.collectAsState()
+    val interfaces = remember { vm.availableInterfaces() }
     val properties by vm.properties.collectAsState()
     val values by vm.signalValues.collectAsState()
     val canLog by vm.canLog.collectAsState()
@@ -42,6 +46,13 @@ fun App(vm: SimulatorViewModel) {
                 profiles = vm.profiles.map { it.name },
                 activeProfile = activeProfile.name,
                 onSelectProfile = vm::selectProfile,
+                interfaces = interfaces,
+                canInterface = canInterface,
+                onSelectInterface = vm::setInterface,
+                baudrate = canBaudrate,
+                baudrates = vm.baudrateOptions,
+                onSelectBaudrate = vm::setBaudrate,
+                busEditable = !status.connected,
                 onConnect = vm::connect,
                 onDisconnect = vm::disconnect,
                 onStart = vm::startEcu,

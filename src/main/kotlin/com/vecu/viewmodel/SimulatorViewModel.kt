@@ -29,7 +29,7 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
     val profiles: List<EcuProfile> = AppConfig.PROFILES
 
     private val instances: List<EcuInstance>
-    private lateinit var driver: CanDriver
+    private var driver: CanDriver? = null // built on connect() from the selected bus
     private lateinit var activeInstance: EcuInstance
 
     private val seq = AtomicLong(0)
@@ -55,36 +55,58 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
     private val _activeProfile = MutableStateFlow(AppConfig.PROFILES[AppConfig.DEFAULT_PROFILE])
     val activeProfile: StateFlow<EcuProfile> = _activeProfile
 
+    // Bus selection, chosen in the UI (shared by all ECUs).
+    private val _canInterface = MutableStateFlow(AppConfig.CAN_INTERFACE)
+    val canInterface: StateFlow<String> = _canInterface
+    private val _canBaudrate = MutableStateFlow(AppConfig.CAN_BAUDRATE)
+    val canBaudrate: StateFlow<String> = _canBaudrate
+
+    /** Common bitrates offered in the UI (used by PCAN; SocketCAN uses the OS-set rate). */
+    val baudrateOptions = listOf("1M", "500K", "250K", "125K", "100K", "50K")
+
     private var stateCollectJob: Job? = null
 
     init {
-        // One instance per profile; they transmit via the shared driver (onInstanceTx),
-        // gated on the bus being open.
-        instances = profiles.map { EcuInstance(it, scope, { driver.isOpen }, ::onInstanceTx) }
-
-        // A single shared bus for all ECUs — use the first profile's settings.
-        val first = instances.first()
-        val iface = first.config.canInterface ?: AppConfig.CAN_INTERFACE
-        driver = if (isWindows()) {
-            val chName = if (iface.uppercase().startsWith("PCAN_")) iface else "PCAN_USBBUS1"
-            PcanDriver(
-                channel = Pcan.channel(chName),
-                baudrate = Pcan.baudrate(first.config.canBaudrate ?: AppConfig.CAN_BAUDRATE),
-                channelName = chName,
-            )
-        } else {
-            SocketCanDriver(iface)
-        }
-        driver.setListener(::onFrameReceived)
+        // One instance per profile; they transmit via the shared driver
+        // (onInstanceTx), gated on the bus being open. The driver is built in
+        // connect() from the interface/bitrate chosen in the UI.
+        instances = profiles.map { EcuInstance(it, scope, { driver?.isOpen == true }, ::onInstanceTx) }
 
         activeInstance = instances[AppConfig.DEFAULT_PROFILE]
         showActive()
-        _status.value = SimStatus(driverName = driver.name, ecuName = activeInstance.name, ecuCount = instances.size)
-        log("INFO", "Loaded ${instances.size} ECUs on ${driver.name}:")
+        _status.value = SimStatus(
+            driverName = driverLabel(_canInterface.value),
+            ecuName = activeInstance.name,
+            ecuCount = instances.size,
+        )
+        log("INFO", "Loaded ${instances.size} ECUs:")
         instances.forEach {
             log("INFO", "  ${it.name}: ${it.profile.dbc} (${it.messageCount} messages), ${it.properties.size} widgets")
         }
-        log("INFO", "Press Connect, then Start ECU.")
+        log("INFO", "Pick a CAN interface, then Connect and Start ECU.")
+    }
+
+    // --- bus selection (only while disconnected) ---
+
+    fun setInterface(name: String) {
+        if (_status.value.connected || name.isBlank()) return
+        _canInterface.value = name.trim()
+        _status.value = _status.value.copy(driverName = driverLabel(name.trim()))
+    }
+
+    fun setBaudrate(name: String) {
+        if (_status.value.connected) return
+        _canBaudrate.value = name
+    }
+
+    /** CAN interfaces to offer: real SocketCAN devices on Linux, PCAN channels on Windows. */
+    fun availableInterfaces(): List<String> {
+        if (isWindows()) return (1..8).map { "PCAN_USBBUS$it" }
+        val devs = java.io.File("/sys/class/net").listFiles()?.filter { dev ->
+            // ARPHRD_CAN == 280 covers both can* and vcan*.
+            runCatching { java.io.File(dev, "type").readText().trim() == "280" }.getOrDefault(false)
+        }?.map { it.name }?.sorted().orEmpty()
+        return (devs + AppConfig.CAN_INTERFACE).distinct()
     }
 
     // --- view selection (non-destructive: all ECUs keep running) ---
@@ -111,10 +133,13 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
     fun connect() {
         if (_status.value.connected) return
         try {
-            driver.open()
+            val d = buildDriver(_canInterface.value, _canBaudrate.value)
+            d.setListener(::onFrameReceived)
+            d.open()
+            driver = d
             instances.forEach { it.clearTxBaseline() } // resend on-change baselines after connect
-            _status.value = _status.value.copy(connected = true, lastError = null)
-            log("INFO", "CAN connected: ${driver.name}")
+            _status.value = _status.value.copy(connected = true, lastError = null, driverName = d.name)
+            log("INFO", "CAN connected: ${d.name}")
         } catch (e: Throwable) {
             _status.value = _status.value.copy(connected = false, lastError = e.message)
             log("ERROR", "Connect failed: ${e.message}")
@@ -123,10 +148,22 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
 
     fun disconnect() {
         if (!_status.value.connected) return
-        driver.close()
-        _status.value = _status.value.copy(connected = false)
+        driver?.close()
+        driver = null
+        _status.value = _status.value.copy(connected = false, driverName = driverLabel(_canInterface.value))
         log("INFO", "CAN disconnected")
     }
+
+    private fun buildDriver(iface: String, baud: String): CanDriver =
+        if (isWindows()) {
+            val chName = if (iface.uppercase().startsWith("PCAN_")) iface else "PCAN_USBBUS1"
+            PcanDriver(Pcan.channel(chName), Pcan.baudrate(baud), chName)
+        } else {
+            SocketCanDriver(iface)
+        }
+
+    private fun driverLabel(iface: String): String =
+        if (isWindows()) "PCAN $iface" else "SocketCAN $iface"
 
     fun startEcu() {
         if (_status.value.ecuRunning) return
@@ -176,7 +213,7 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
     }
 
     private fun onInstanceTx(inst: EcuInstance, frame: CanFrame, message: String, values: Map<String, Double>) {
-        driver.send(frame)
+        driver?.send(frame) ?: return
         addCanRow(Direction.TX, frame, message, values, inst.name)
     }
 

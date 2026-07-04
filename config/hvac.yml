@@ -4,10 +4,8 @@
 ecu:
   name: HVAC
 
-can:
-  interface: vcan0        # Linux SocketCAN (vcan0/can0). On Windows use a PCAN
-                          # channel, e.g. PCAN_USBBUS1.
-  baudrate: 500K          # PCAN bitrate (Windows only; ignored by SocketCAN)
+# The CAN interface + bitrate are chosen in the app toolbar (shared by all ECUs),
+# not here.
 
 # Sensible starting values so gauges/setpoints don't sit at zero.
 defaults:

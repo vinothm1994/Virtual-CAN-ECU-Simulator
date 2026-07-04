@@ -5,9 +5,7 @@
 ecu:
   name: Vehicle
 
-can:
-  interface: vcan0        # Linux SocketCAN; on Windows use e.g. PCAN_USBBUS1
-  baudrate: 500K
+# CAN interface + bitrate are chosen in the app toolbar (shared by all ECUs).
 
 defaults:
   VehicleSpeed: 0.0
