@@ -17,10 +17,16 @@ another `(dbc, yaml)` pair in `AppConfig.PROFILES`.
 > self-test (18 checks), the Compose UI, and **live SocketCAN on `vcan0`** (both
 > ECUs on one bus). Runs on Linux (SocketCAN) and Windows (PCAN-USB).
 
-![screenshot](docs/screenshot.png)
+![HVAC ECU](docs/screenshot.png)
 
-*Viewing the HVAC ECU while the Vehicle ECU runs concurrently — its live
+*Viewing the **HVAC** ECU while the Vehicle ECU runs concurrently — its live
 telemetry is decoded and tagged in the global CAN monitor (right).*
+
+![Vehicle ECU](docs/screenshot-vehicle.png)
+
+*Switching the view to the **Vehicle** ECU (nothing stops): speed / RPM / coolant
+/ fuel, a gear dropdown (P/R/N/D/S/L) and drive-mode selector — the same monitor,
+the other profile.*
 
 ## Architecture
 

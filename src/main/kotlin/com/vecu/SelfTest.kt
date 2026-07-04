@@ -56,6 +56,12 @@ fun main() {
     val properties = PropertyManager.build(config.widgets, dbc.schema)
     val ecu = VirtualEcu(dbc.schema, RuleEngine(config.rules), config.defaults)
 
+    check(
+        "Default applied to feedback (HvacFanDirection)",
+        ecu.state.get("HvacFanDirection") == 1.0,
+        "= ${ecu.state.get("HvacFanDirection")} (expected 1.0)",
+    )
+
     check("DBC messages", dbc.schema.messages.size >= 4, "${dbc.schema.messages.size} messages")
     check("Properties built", properties.size == config.widgets.size, "${properties.size} widgets")
     check(
@@ -92,13 +98,16 @@ fun main() {
     check("Round-trip fan speed", rt["HvacFanSpeed"] == 5.0)
     println("  status frame ${statusFrame.idHex()} = ${statusFrame.hex()}")
 
-    // --- Power OFF must gate A/C and fan to zero ---
+    // --- Power OFF: airflow (A/C, fan, RPM) gates to zero, but the
+    //     air-distribution setpoint persists (not gated). ---
+    ecu.setSignal("HvacFanDirectionReq", 2.0) // floor
     ecu.setSignal("HvacPowerOnReq", 0.0)
     repeat(2) { ecu.tick() }
     val off = ecu.buildTx("HvacStatus")
     check("Power off gates A/C", off["HvacAcOn"] == 0.0)
     check("Power off gates fan", off["HvacFanSpeed"] == 0.0)
     check("Power off gates RPM", off["HvacActualFanRpm"] == 0.0)
+    check("Air distribution persists on power off", off["HvacFanDirection"] == 2.0, "${off["HvacFanDirection"]}")
 
     dbc.close()
     println("=== ${if (failures == 0) "ALL PASSED" else "$failures FAILED"} ===")

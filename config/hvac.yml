@@ -132,7 +132,8 @@ rules:
   - { type: mirror, from: HvacDefrosterRearReq,  to: HvacDefrosterRear,  gatedBy: HvacPowerOn }
   - { type: mirror, from: HvacAutoRecircOnReq,   to: HvacAutoRecircOn,   gatedBy: HvacPowerOn }
   - { type: mirror, from: HvacFanSpeedReq,       to: HvacFanSpeed,       gatedBy: HvacPowerOn }
-  - { type: mirror, from: HvacFanDirectionReq,   to: HvacFanDirection,   gatedBy: HvacPowerOn }
+  # Air-distribution setpoint persists regardless of power (only airflow stops).
+  - { type: mirror, from: HvacFanDirectionReq,   to: HvacFanDirection }
 
   # Setpoints (temperature is settable even before airflow ramps up).
   - { type: mirror, from: HvacTempSetDriverReq,    to: HvacTempSetDriver }
