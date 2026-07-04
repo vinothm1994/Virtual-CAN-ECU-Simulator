@@ -1,7 +1,6 @@
 package com.vecu
 
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
@@ -15,11 +14,11 @@ import com.vecu.viewmodel.SimulatorViewModel
  * build the property model + Virtual ECU, then show the window. No project setup.
  */
 fun main() = application {
-    val scope = rememberCoroutineScope()
-
     // Build the ViewModel once; surface any startup failure instead of crashing.
+    // It owns its own background scope, so CAN timing is independent of the
+    // window (a minimized/hidden window must not throttle transmission).
     val result = remember {
-        runCatching { SimulatorViewModel(scope) }
+        runCatching { SimulatorViewModel() }
     }
     val vm = result.getOrNull()
 

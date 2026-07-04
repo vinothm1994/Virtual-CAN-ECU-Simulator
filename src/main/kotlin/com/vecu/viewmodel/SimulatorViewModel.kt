@@ -10,7 +10,10 @@ import com.vecu.config.EcuProfile
 import com.vecu.core.ecu.EcuInstance
 import com.vecu.core.property.Property
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
@@ -24,7 +27,12 @@ import java.util.concurrent.atomic.AtomicLong
  * shown — switching is a view change, nothing stops. The CAN monitor is global
  * (whole-bus). Exposes immutable [StateFlow]s for Compose to observe.
  */
-class SimulatorViewModel(private val scope: CoroutineScope) {
+class SimulatorViewModel {
+    // Background scope for all CAN timing (ticks, schedulers, state collection).
+    // Deliberately NOT the Compose UI scope — the window being minimized/hidden
+    // must not throttle transmission.
+    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
+
     /** ECU profiles (HVAC, Vehicle, ...) — all run at once; one is viewed. */
     val profiles: List<EcuProfile> = AppConfig.PROFILES
 
@@ -216,6 +224,7 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
         disconnect()
         stateCollectJob?.cancel()
         instances.forEach { it.close() }
+        scope.cancel()
     }
 
     // --- CAN paths (shared bus) ---
