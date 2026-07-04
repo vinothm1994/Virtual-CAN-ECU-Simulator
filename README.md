@@ -13,32 +13,61 @@ is instant and stops nothing. The **CAN monitor is global** (whole bus, each row
 tagged with its ECU). Adding a Cluster / BCM / Gateway / Seats ECU is just
 another `(dbc, yaml)` pair in `AppConfig.PROFILES`.
 
-> **Status:** MVP complete and verified — native JNI bridge, headless pipeline
-> self-test (14/14), and the Compose UI all run. The screenshot below is the
-> live app with the ECU running and Power/A/C toggled on.
+> **Status:** working and verified end-to-end — native JNI bridge, headless
+> self-test (18 checks), the Compose UI, and **live SocketCAN on `vcan0`** (both
+> ECUs on one bus). Runs on Linux (SocketCAN) and Windows (PCAN-USB).
 
 ![screenshot](docs/screenshot.png)
 
 ## Architecture
 
-```
-Compose UI  (ui/)                     dynamic widgets, CAN monitor, log
-    │  observes StateFlow
-ViewModel  (viewmodel/)               wiring + lifecycle (connect / start ECU)
-    │
-Property Manager  (core/property/)    YAML widget specs × DBC metadata → Property
-    │
-Virtual ECU Engine  (core/ecu/)       request → rules → feedback, signal state
-    │
-Rule Engine  (core/rule/)             mirror / scale / ramp rules from YAML
-    │
-DBC Service  (dbc/)  ─── JNI ───▶ dbcppp     encode / decode / schema
-    │
-CAN Driver  (can/)   ─── JNI ───▶ SocketCAN  (Linux)   |   PCAN (Windows, stub)
+Layered and independent: only `DbcService` knows dbcppp, only the drivers know
+the transport, only the UI knows Compose. One native library (`libvecunative.so`
+/ `vecunative.dll`) bridges both dbcppp and the CAN transport over JNI.
+
+```mermaid
+flowchart TD
+    subgraph jvm["JVM · Kotlin / Compose (MVVM)"]
+        UI["Compose UI — ui/<br/>widgets · CAN monitor · log"]
+        VM["ViewModel — viewmodel/<br/>lifecycle · shared bus · global monitor"]
+        INST["EcuInstance × N — core/ecu/<br/>PropertyManager · RuleEngine · VirtualEcu · TxScheduler"]
+        DBC["DbcService — dbc/"]
+        DRV["CanDriver — can/"]
+    end
+    subgraph native["Native · C++ (JNI)"]
+        NAT["libvecunative.so / vecunative.dll"]
+        DBCPPP["dbcppp"]
+        TRANSPORT["SocketCAN (Linux)<br/>PCAN-Basic (Windows)"]
+    end
+    BUS(["CAN bus"])
+
+    UI <-->|"StateFlow / events"| VM
+    VM --> INST
+    INST -->|"named signals"| DBC
+    VM --> DRV
+    INST --> DRV
+    DBC -->|"encode / decode / schema"| NAT --> DBCPPP
+    DRV --> NAT --> TRANSPORT
+    TRANSPORT <--> BUS
 ```
 
-Each layer is independent; only `DbcService` knows dbcppp, only the drivers know
-the transport, only the UI knows Compose.
+**Run-all, view-one.** Every profile runs as its own `EcuInstance` on one shared
+bus. RX fans out to all instances (each decodes only its own DBC); every instance
+transmits its own status. The toolbar picks which one's widgets you see; the CAN
+monitor shows the whole bus.
+
+```mermaid
+flowchart LR
+    BUS(["CAN bus (shared)"])
+    BUS -->|"RX · fan-out"| H["HVAC ECU<br/>decode → rules → feedback"]
+    BUS -->|"RX · fan-out"| V["Vehicle ECU<br/>decode → rules → feedback"]
+    H -->|"encode status · TX"| BUS
+    V -->|"encode status · TX"| BUS
+    H -.->|"active view"| W["Widgets (one ECU)"]
+    V -.->|"active view"| W
+    H --> M["Global CAN monitor"]
+    V --> M
+```
 
 ## Layout
 
@@ -46,8 +75,8 @@ the transport, only the UI knows Compose.
 |------|------|
 | `config/hvac.dbc` + `hvac.yml` | HVAC ECU profile (modelled on the AOSP VHAL HVAC properties) |
 | `config/vehicle.dbc` + `vehicle.yml` | Vehicle ECU profile (speed, RPM, coolant, gear, fuel, drive mode) |
-| `native/` | `libvecunative.so`: JNI bridge for dbcppp + SocketCAN (CMake) |
-| `native/prebuilt/` | vendored dbcppp: shared headers + per-arch `libdbcppp.so` (x86_64 + aarch64) |
+| `native/` | JNI bridge for dbcppp + SocketCAN/PCAN (CMake, OS-conditional) |
+| `native/prebuilt/` | vendored dbcppp: shared headers + per-platform lib (linux-x86_64, linux-aarch64, windows-x86_64) |
 | `src/main/kotlin/com/vecu/` | the Kotlin/Compose application |
 | `scripts/` | `setup_vcan.sh`, `ivi_demo.sh` |
 
@@ -55,20 +84,20 @@ the transport, only the UI knows Compose.
 src/main/kotlin/com/vecu/
 ├── Main.kt                     application entry (window)
 ├── SelfTest.kt                 headless pipeline check (./gradlew selfTest)
-├── config/                     AppConfig, NativeLoader
+├── config/                     AppConfig, EcuProfile, NativeLoader
 ├── dbc/                        DbcNative (JNI), DbcSchema, DbcService  ── dbcppp
-├── can/                        CanDriver, SocketCanDriver, PcanDriver, SocketCanNative
+├── can/                        CanDriver, SocketCanDriver/Native, PcanDriver/Native, CanFrame
 ├── core/
 │   ├── config/                 SimConfig (YAML: widgets, rules, tx, defaults)
 │   ├── property/               Property, PropertyManager, WidgetType
 │   ├── rule/                   RuleEngine (mirror / scale / ramp)
-│   ├── ecu/                    EcuState, VirtualEcu
-│   └── scheduler/              TxScheduler (periodic TX)
+│   ├── ecu/                    EcuInstance (per-profile runtime), VirtualEcu, EcuState
+│   └── scheduler/              TxScheduler (cyclic / on-change TX)
 ├── viewmodel/                  SimulatorViewModel, UiState
 └── ui/                         App, Toolbar, PropertyPanel, DynamicUi, CanMonitor, LogPanel, Theme
 ```
 
-## Prerequisites (already provisioned on this machine)
+## Prerequisites
 
 - **JDK 17+** (a full JDK — the native bridge needs `javac` + `jni.h`). Gradle
   uses `JAVA_HOME` / the `java` on `PATH`; pin a specific JDK via
@@ -118,62 +147,98 @@ The simulator's widgets track each incoming command, and it transmits
 `HvacStatus` (0x500) and `HvacTemperatures` (0x501) back to the bus at the
 periods set under `tx:` in `config/hvac.yml`.
 
-## The YAML contract
+## YAML schema
+
+A profile's `*.yml` defines its UI, behaviour and transmission — entirely by
+**signal / message name** (never CAN ids or bit positions; those live in the DBC).
+The CAN interface + bitrate are chosen in the toolbar, not here.
 
 ```yaml
-ui:
-  - id: fanSpeed
-    title: Fan Speed
-    widget: slider          # switch | slider | temperature | dropdown | gauge | label | button
-    min: 0
-    max: 7
-    request: HvacFanSpeedReq   # signal the control writes
-    feedback: HvacFanSpeed     # signal the control reads back
+ecu:
+  name: HVAC                     # ECU display name
 
-rules:
+defaults:                        # optional — initial signal values (physical units)
+  HvacTempSetDriver: 22.0
+
+ui:                              # widgets, rendered in this order
+  - id: fanSpeed                 # unique id (required)
+    title: Fan Speed             # label (optional; defaults to id)
+    widget: slider               # switch|slider|temperature|dropdown|gauge|label|button
+    request: HvacFanSpeedReq     # optional — signal the control writes
+    feedback: HvacFanSpeed       # optional — signal it displays / reads back
+    min: 0                       # optional — else the DBC signal's min
+    max: 7                       # optional — else the DBC signal's max
+    step: 1                      # optional — slider / temperature increment
+
+rules:                           # ECU behaviour, applied in order every tick
   - { type: mirror, from: HvacFanSpeedReq, to: HvacFanSpeed, gatedBy: HvacPowerOn }
   - { type: scale,  from: HvacFanSpeed, to: HvacActualFanRpm, factor: 350 }
   - { type: ramp,   to: HvacTempCurrentDriver, toward: HvacTempSetDriver, rate: 0.2 }
 
-tx:
-  - { message: HvacStatus, period_ms: 100 }     # cyclic
-  - { message: GearStatus, on_change: true }     # event-triggered (gear, indicators…)
-  - { message: DoorStatus, period_ms: 1000, on_change: true }  # both
+tx:                              # status transmission
+  - { message: HvacStatus, period_ms: 100 }
+  - { message: GearStatus, on_change: true }
+  - { message: DoorStatus, period_ms: 1000, on_change: true }
 ```
 
-- **mirror** `to = from` (0 when `gatedBy` is off; skipped unless `onlyWhen` on)
-- **scale** `to = from * factor`
-- **ramp** `to` moves toward `toward` by `rate` each tick
+### Widgets (`ui:`)
 
-### Transmission types
+| widget | control writes | displays | notes |
+|--------|----------------|----------|-------|
+| `switch` | `request` 0/1 | `feedback` on/off | |
+| `slider` | `request` | value | honours `min`/`max`/`step` |
+| `temperature` | `request` | value | like slider, °C-formatted |
+| `dropdown` | `request` | enum label | options come from the DBC `VAL_` table |
+| `gauge` | — (read-only) | `feedback` | arc display |
+| `label` | — (read-only) | `feedback` | text |
+| `button` | `request` = 1 | — | momentary |
 
-Each `tx:` entry is one of the standard CAN transmission types:
+`request` is what the control writes (a command, as if from the IVI); `feedback`
+is what it reads back (the ECU's reported state). For pure telemetry the two are
+the **same** signal (`request == feedback`), so the control both sets and shows it.
+Ranges/units/enum options come from the DBC unless the YAML overrides them.
 
-- **cyclic** — `period_ms: N` sends every N ms (e.g. `HvacStatus`).
-- **on-change** — `on_change: true` sends only when the message's encoded
-  content changes (e.g. `GEAR_SELECTION`, turn indicators, button presses — not
-  periodic). Detected each rule tick, so a UI/CAN-driven change reaches the bus
-  within one tick.
-- **both** — set `period_ms` *and* `on_change` for a cyclic message that also
-  pushes immediately on change.
+### Rules (`rules:`)
+
+Applied in order, every tick, over the ECU's signal state.
+
+| type | effect | fields |
+|------|--------|--------|
+| `mirror` | `to = from` | `from`, `to`, `gatedBy?`, `onlyWhen?` |
+| `scale` | `to = from × factor` | `from`, `to`, `factor`, `gatedBy?` |
+| `ramp` | `to` moves toward `toward` by `rate` per tick | `to`, `toward`, `rate` |
+
+- `gatedBy: SIG` — forces the result to `0` when `SIG` is off (e.g. everything off when power is off).
+- `onlyWhen: SIG` — skips the rule unless `SIG` is on (e.g. passenger temp follows driver only in dual mode).
+
+### Transmission (`tx:`)
+
+The standard CAN transmission types:
+
+| form | behaviour |
+|------|-----------|
+| `period_ms: N` | **cyclic** — send every N ms (e.g. `HvacStatus`) |
+| `on_change: true` | **on-change** — send only when the message's encoded content changes (gear, indicators, button presses); detected each tick |
+| both | **cyclic + on-change** — a heartbeat that also pushes immediately on change |
 
 On-change messages are (re)sent once as a baseline right after **Connect**.
 
 ## Verification
 
-Three levels, all passing:
+All passing:
 
-1. **Native contract** — the JNI bridge loads the DBC, emits the schema, and
-   round-trips an encode → decode (`HvacStatus` with fan=5, RPM=1500).
-2. **`./gradlew selfTest`** — 14/14 checks: property build, dropdown enums from
-   the DBC, mirror/scale/ramp rules, cabin-temp ramp to setpoint, encode/decode
-   round-trip, and power-off gating.
-3. **GUI** — launches and renders all panels; driving it live (Start ECU, toggle
-   Power/A/C) shows the request → rule engine → feedback loop update the widgets.
+- **`./gradlew selfTest`** (18 checks) — every profile loads; multi-ECU routing
+  (HVAC handles `HvacControl`, Vehicle ignores it); property build; dropdown
+  enums from the DBC; mirror/scale/ramp rules; ramp-to-setpoint; encode/decode
+  round-trip; power-off gating.
+- **GUI** — all panels render; driving it live (Start ECU, toggle switches,
+  switch profiles) works.
+- **Live SocketCAN** (`vcan0`) — injected an `HvacControl` request and observed
+  the HVAC ECU transmit `HvacStatus` back (~71 ms later) while the Vehicle ECU
+  transmitted its telemetry concurrently, all decoded in the global monitor.
 
-The only path not exercised end-to-end in the build environment is the live
-SocketCAN wire I/O, because creating `vcan0` needs root — run the
-[Live bus test](#live-bus-test) to cover it.
+On **Windows**, the DLLs are cross-built and validated as PE (arch + JNI exports);
+the on-device PCAN run is done on the Windows machine.
 
 ## Running on Windows (PCAN-USB)
 
