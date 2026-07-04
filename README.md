@@ -19,6 +19,9 @@ another `(dbc, yaml)` pair in `AppConfig.PROFILES`.
 
 ![screenshot](docs/screenshot.png)
 
+*Viewing the HVAC ECU while the Vehicle ECU runs concurrently — its live
+telemetry is decoded and tagged in the global CAN monitor (right).*
+
 ## Architecture
 
 Layered and independent: only `DbcService` knows dbcppp, only the drivers know
@@ -264,3 +267,17 @@ you only need a **JDK 17+** to run — no C++ toolchain.
   CAN only (8-byte frames) — no CAN-FD.
 - Configuration is hardcoded in `config/AppConfig.kt` (no file dialogs / project
   management) — by design for the MVP.
+
+## Roadmap / TODO
+
+- [ ] Add a `LICENSE` (MIT / Apache-2.0) for the first public release.
+- [ ] Windows: on-device PCAN-USB run test (DLLs are cross-built + PE-validated;
+      needs a Windows box with a PEAK adapter).
+- [ ] aarch64 / Pi: build the JNI lib on-device and run (dbcppp is already
+      prebuilt for aarch64).
+- [ ] Package as Deb / AppImage bundling the native libs (standalone install).
+- [ ] Per-ECU Connect / Start toggles (today all ECUs start/stop together).
+- [ ] Editable / custom CAN interface name (today: a dropdown of detected devices).
+- [ ] CAN-FD support (today: classic 8-byte frames only).
+- [ ] Manual per-message "Send" for bring-up testing.
+- [ ] More ECU profiles (Cluster, BCM, Seats, …) — each just a `(dbc, yaml)` pair.
