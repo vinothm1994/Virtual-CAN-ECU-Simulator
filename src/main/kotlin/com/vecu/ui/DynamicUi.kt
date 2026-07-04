@@ -37,6 +37,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vecu.core.property.Property
@@ -75,14 +76,29 @@ private fun WidgetCard(property: Property, feedback: Double, content: @Composabl
         colors = CardDefaults.cardColors(containerColor = Color(0xFF1E252D)),
     ) {
         Column(Modifier.padding(14.dp)) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(property.title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                // Title takes the remaining width and ellipsises if too long, so
+                // the value tag beside it always keeps its single-line space.
                 Text(
-                    feedbackTag(property, feedback),
-                    fontSize = 12.sp,
-                    fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.primary,
+                    property.title,
+                    modifier = Modifier.weight(1f).padding(end = 8.dp),
+                    fontWeight = FontWeight.SemiBold,
+                    fontSize = 14.sp,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
+                // Gauges show the value + unit in their body already, so the
+                // header tag there would be redundant.
+                if (property.widget != WidgetType.GAUGE) {
+                    Text(
+                        feedbackTag(property, feedback),
+                        fontSize = 12.sp,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        softWrap = false,
+                    )
+                }
             }
             Spacer(Modifier.height(10.dp))
             content()
