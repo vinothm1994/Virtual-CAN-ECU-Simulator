@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
@@ -44,6 +45,8 @@ fun Toolbar(
     baudrate: String,
     baudrates: List<String>,
     onSelectBaudrate: (String) -> Unit,
+    bitrateEditable: Boolean,
+    bitrateDisplay: String,
     busEditable: Boolean,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
@@ -71,7 +74,13 @@ fun Toolbar(
 
         // CAN bus selection (editable only while disconnected).
         DropdownField(canInterface, interfaces, onSelectInterface, busEditable)
-        DropdownField(baudrate, baudrates, onSelectBaudrate, busEditable)
+        if (bitrateEditable) {
+            // PCAN/Windows: the app sets the bitrate.
+            DropdownField(baudrate, baudrates, onSelectBaudrate, busEditable)
+        } else {
+            // SocketCAN/Linux: bitrate is set by `ip link ... up` — show it read-only.
+            BitrateChip(bitrateDisplay)
+        }
         Spacer(Modifier.width(4.dp))
 
         if (status.connected) {
@@ -152,6 +161,21 @@ private fun DropdownField(value: String, options: List<String>, onSelect: (Strin
             }
         }
     }
+}
+
+/** Read-only bitrate display (Linux SocketCAN — the OS-configured rate). */
+@Composable
+private fun BitrateChip(text: String) {
+    Text(
+        text,
+        modifier = Modifier
+            .clip(RoundedCornerShape(6.dp))
+            .background(Color(0xFF232B33))
+            .padding(horizontal = 10.dp, vertical = 7.dp),
+        fontSize = 12.sp,
+        fontFamily = FontFamily.Monospace,
+        color = Color(0xFF9FB0BC),
+    )
 }
 
 @Composable

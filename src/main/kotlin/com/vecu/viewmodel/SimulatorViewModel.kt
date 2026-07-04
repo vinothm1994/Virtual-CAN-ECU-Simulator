@@ -64,6 +64,12 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
     /** Common bitrates offered in the UI (used by PCAN; SocketCAN uses the OS-set rate). */
     val baudrateOptions = listOf("1M", "500K", "250K", "125K", "100K", "50K")
 
+    /** The app sets the bitrate only on PCAN/Windows; SocketCAN's is OS-configured. */
+    val bitrateEditable: Boolean = isWindows()
+    // On Linux, the selected interface's actual (read-only) bitrate, from /sys.
+    private val _bitrateDisplay = MutableStateFlow("")
+    val bitrateDisplay: StateFlow<String> = _bitrateDisplay
+
     private var stateCollectJob: Job? = null
 
     init {
@@ -79,6 +85,7 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
             ecuName = activeInstance.name,
             ecuCount = instances.size,
         )
+        _bitrateDisplay.value = readBitrate(_canInterface.value)
         log("INFO", "Loaded ${instances.size} ECUs:")
         instances.forEach {
             log("INFO", "  ${it.name}: ${it.profile.dbc} (${it.messageCount} messages), ${it.properties.size} widgets")
@@ -90,8 +97,21 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
 
     fun setInterface(name: String) {
         if (_status.value.connected || name.isBlank()) return
-        _canInterface.value = name.trim()
-        _status.value = _status.value.copy(driverName = driverLabel(name.trim()))
+        val iface = name.trim()
+        _canInterface.value = iface
+        _bitrateDisplay.value = readBitrate(iface)
+        _status.value = _status.value.copy(driverName = driverLabel(iface))
+    }
+
+    /** Read-only bitrate of a SocketCAN interface: the OS-configured rate, "virtual", or "—". */
+    private fun readBitrate(iface: String): String {
+        val f = java.io.File("/sys/class/net/$iface/can_bittiming/bitrate")
+        val bps = f.takeIf { it.exists() }?.runCatching { readText().trim().toInt() }?.getOrNull()
+        return when {
+            bps != null -> if (bps % 1000 == 0) "${bps / 1000} kbit/s" else "$bps bit/s"
+            iface.startsWith("vcan") -> "virtual"
+            else -> "—" // real CAN not up (bitrate configured at `ip link ... up`)
+        }
     }
 
     fun setBaudrate(name: String) {

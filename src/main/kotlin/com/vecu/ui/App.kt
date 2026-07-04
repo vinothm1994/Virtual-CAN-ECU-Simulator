@@ -33,6 +33,7 @@ fun App(vm: SimulatorViewModel) {
     val activeProfile by vm.activeProfile.collectAsState()
     val canInterface by vm.canInterface.collectAsState()
     val canBaudrate by vm.canBaudrate.collectAsState()
+    val bitrateDisplay by vm.bitrateDisplay.collectAsState()
     val interfaces = remember { vm.availableInterfaces() }
     val properties by vm.properties.collectAsState()
     val values by vm.signalValues.collectAsState()
@@ -52,6 +53,8 @@ fun App(vm: SimulatorViewModel) {
                 baudrate = canBaudrate,
                 baudrates = vm.baudrateOptions,
                 onSelectBaudrate = vm::setBaudrate,
+                bitrateEditable = vm.bitrateEditable,
+                bitrateDisplay = bitrateDisplay,
                 busEditable = !status.connected,
                 onConnect = vm::connect,
                 onDisconnect = vm::disconnect,
