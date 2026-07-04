@@ -14,3 +14,6 @@ local.properties
 
 # Kotlin build session cache
 /.kotlin/
+
+# Local Claude Code guidance (not for the public repo)
+/CLAUDE.md
