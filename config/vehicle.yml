@@ -1,0 +1,39 @@
+# Virtual Vehicle/powertrain ECU. Mostly telemetry the ECU emits (speed, RPM,
+# coolant, gear, fuel), plus one command in (drive mode). For telemetry signals
+# the control both sets and shows them, so request == feedback == the signal.
+
+ecu:
+  name: Vehicle
+
+can:
+  interface: vcan0        # Linux SocketCAN; on Windows use e.g. PCAN_USBBUS1
+  baudrate: 500K
+
+defaults:
+  VehicleSpeed: 0.0
+  EngineRPM: 800.0
+  CoolantTemp: 90.0
+  GearPosition: 0.0
+  FuelLevel: 75.0
+  DriveModeReq: 0.0
+  DriveModeState: 0.0
+
+ui:
+  - { id: speed,   title: Vehicle Speed, widget: slider, min: 0, max: 240,  step: 1,  request: VehicleSpeed, feedback: VehicleSpeed }
+  - { id: rpm,     title: Engine RPM,    widget: slider, min: 0, max: 8000, step: 50, request: EngineRPM,    feedback: EngineRPM }
+  - { id: coolant, title: Coolant Temp,  widget: slider, min: -20, max: 130, step: 1, request: CoolantTemp,  feedback: CoolantTemp }
+  - { id: gear,    title: Gear,          widget: slider, min: 0, max: 6,    step: 1,  request: GearPosition, feedback: GearPosition }
+  - { id: fuel,    title: Fuel Level,    widget: slider, min: 0, max: 100,  step: 1,  request: FuelLevel,    feedback: FuelLevel }
+  - { id: mode,    title: Drive Mode,    widget: dropdown, request: DriveModeReq, feedback: DriveModeState }
+  - { id: speedGauge, title: Speed,  widget: gauge, min: 0, max: 240,  feedback: VehicleSpeed }
+  - { id: rpmGauge,   title: RPM,    widget: gauge, min: 0, max: 8000, feedback: EngineRPM }
+
+rules:
+  # IVI drive-mode command -> reported drive-mode state.
+  - { type: mirror, from: DriveModeReq, to: DriveModeState }
+
+tx:
+  - { message: VehicleStatus,      period_ms: 100 }
+  - { message: EngineStatus,       period_ms: 100 }
+  - { message: TransmissionStatus, on_change: true }   # gear = event-triggered
+  - { message: BodyStatus,         period_ms: 1000 }
