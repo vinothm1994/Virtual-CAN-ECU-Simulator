@@ -4,11 +4,11 @@ A desktop app that acts as a **Virtual ECU on a CAN bus**. It receives request
 frames (e.g. from an IVI head unit), decodes them with a DBC, runs ECU logic,
 updates a dynamically generated UI, and transmits status frames back.
 
-The first ECU implemented is **HVAC**, but nothing about the app is
-HVAC-specific: the ECU is defined entirely by a **DBC** (message/signal layout)
-plus a **YAML** (widgets, rules, periodic TX). Point it at a different pair of
-files and it becomes a Cluster / BCM / Gateway / Seats simulator with no code
-change.
+An ECU is defined entirely by a **DBC** (message/signal layout) plus a **YAML**
+(widgets, rules, periodic TX) — no code is ECU-specific. The app ships two
+**profiles**, **HVAC** and **Vehicle**, switchable from the toolbar; adding a
+Cluster / BCM / Gateway / Seats ECU is just another `(dbc, yaml)` pair in
+`AppConfig.PROFILES`.
 
 > **Status:** MVP complete and verified — native JNI bridge, headless pipeline
 > self-test (14/14), and the Compose UI all run. The screenshot below is the
@@ -41,8 +41,8 @@ the transport, only the UI knows Compose.
 
 | Path | What |
 |------|------|
-| `config/hvac.dbc` | DBC database — HVAC modelled on the AOSP VHAL HVAC properties |
-| `config/hvac.yml` | UI widgets, defaults, rules, periodic TX — all by signal name |
+| `config/hvac.dbc` + `hvac.yml` | HVAC ECU profile (modelled on the AOSP VHAL HVAC properties) |
+| `config/vehicle.dbc` + `vehicle.yml` | Vehicle ECU profile (speed, RPM, coolant, gear, fuel, drive mode) |
 | `native/` | `libvecunative.so`: JNI bridge for dbcppp + SocketCAN (CMake) |
 | `native/prebuilt/` | vendored dbcppp: shared headers + per-arch `libdbcppp.so` (x86_64 + aarch64) |
 | `src/main/kotlin/com/vecu/` | the Kotlin/Compose application |

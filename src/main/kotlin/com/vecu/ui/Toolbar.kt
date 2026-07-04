@@ -11,9 +11,15 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -28,6 +34,9 @@ import com.vecu.viewmodel.SimStatus
 @Composable
 fun Toolbar(
     status: SimStatus,
+    profiles: List<String>,
+    activeProfile: String,
+    onSelectProfile: (String) -> Unit,
     onConnect: () -> Unit,
     onDisconnect: () -> Unit,
     onStart: () -> Unit,
@@ -47,7 +56,10 @@ fun Toolbar(
             fontSize = 15.sp,
             color = Color(0xFFE2E6EA),
         )
-        Spacer(Modifier.width(8.dp))
+        Spacer(Modifier.width(4.dp))
+
+        ProfileSelector(profiles, activeProfile, onSelectProfile)
+        Spacer(Modifier.width(4.dp))
 
         if (status.connected) {
             OutlinedButton(onClick = onDisconnect) { Text("Disconnect") }
@@ -75,6 +87,26 @@ fun Toolbar(
         status.lastError?.let {
             Spacer(Modifier.width(12.dp))
             Text("⚠ $it", color = VecuColors.error, fontSize = 12.sp)
+        }
+    }
+}
+
+/** ECU profile chooser (HVAC ▾ / Vehicle …). */
+@Composable
+private fun ProfileSelector(profiles: List<String>, active: String, onSelect: (String) -> Unit) {
+    var expanded by remember { mutableStateOf(false) }
+    Box {
+        OutlinedButton(onClick = { expanded = true }) { Text("$active  ▾") }
+        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+            profiles.forEach { name ->
+                DropdownMenuItem(
+                    text = { Text(name) },
+                    onClick = {
+                        onSelect(name)
+                        expanded = false
+                    },
+                )
+            }
         }
     }
 }

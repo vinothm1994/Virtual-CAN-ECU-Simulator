@@ -29,6 +29,7 @@ private val DividerColor = Color(0xFF0B0E11)
 @Composable
 fun App(vm: SimulatorViewModel) {
     val status by vm.status.collectAsState()
+    val activeProfile by vm.activeProfile.collectAsState()
     val properties by vm.properties.collectAsState()
     val values by vm.signalValues.collectAsState()
     val canLog by vm.canLog.collectAsState()
@@ -38,6 +39,9 @@ fun App(vm: SimulatorViewModel) {
         Column(Modifier.fillMaxSize().background(Background)) {
             Toolbar(
                 status = status,
+                profiles = vm.profiles.map { it.name },
+                activeProfile = activeProfile.name,
+                onSelectProfile = vm::selectProfile,
                 onConnect = vm::connect,
                 onDisconnect = vm::disconnect,
                 onStart = vm::startEcu,

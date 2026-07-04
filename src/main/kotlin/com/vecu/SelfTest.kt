@@ -18,12 +18,28 @@ fun main() {
         println("[$tag] $name${if (detail.isNotEmpty()) "  ($detail)" else ""}")
     }
 
-    val dbc = DbcService().apply { load(AppConfig.DBC_FILE) }
-    val config = SimConfig.load(AppConfig.YAML_FILE)
+    println("=== Virtual CAN ECU — self test ===")
+
+    // Every configured ECU profile loads its DBC and builds a UI.
+    for (p in AppConfig.PROFILES) {
+        val d = DbcService().apply { load(p.dbc) }
+        val c = SimConfig.load(p.yaml)
+        val props = PropertyManager.build(c.widgets, d.schema)
+        check(
+            "Profile '${p.name}' loads",
+            d.schema.messages.isNotEmpty() && props.isNotEmpty(),
+            "${d.schema.messages.size} msgs, ${props.size} widgets",
+        )
+        d.close()
+    }
+
+    // The rest of the checks exercise the HVAC profile in depth.
+    val hvac = AppConfig.PROFILES.first { it.name == "HVAC" }
+    val dbc = DbcService().apply { load(hvac.dbc) }
+    val config = SimConfig.load(hvac.yaml)
     val properties = PropertyManager.build(config.widgets, dbc.schema)
     val ecu = VirtualEcu(dbc.schema, RuleEngine(config.rules), config.defaults)
 
-    println("=== Virtual CAN ECU — self test ===")
     check("DBC messages", dbc.schema.messages.size >= 4, "${dbc.schema.messages.size} messages")
     check("Properties built", properties.size == config.widgets.size, "${properties.size} widgets")
     check(

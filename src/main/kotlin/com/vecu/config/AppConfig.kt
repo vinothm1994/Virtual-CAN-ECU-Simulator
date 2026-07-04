@@ -7,11 +7,17 @@ package com.vecu.config
  * different pair of files here.
  */
 object AppConfig {
-    /** DBC database: messages, signals, bit layout, scaling, enums. */
-    const val DBC_FILE = "config/hvac.dbc"
+    /**
+     * The ECU profiles the app can simulate (each = a DBC + a YAML). Add an ECU
+     * by adding a profile here — no code change. Selectable from the toolbar.
+     */
+    val PROFILES = listOf(
+        EcuProfile("HVAC", "config/hvac.dbc", "config/hvac.yml"),
+        EcuProfile("Vehicle", "config/vehicle.dbc", "config/vehicle.yml"),
+    )
 
-    /** YAML: UI widgets, request/feedback bindings, rules, periodic TX. */
-    const val YAML_FILE = "config/hvac.yml"
+    /** Index into [PROFILES] loaded at startup. */
+    const val DEFAULT_PROFILE = 0
 
     /** Fallback CAN interface if the YAML does not specify one (Linux SocketCAN). */
     const val CAN_INTERFACE = "vcan0"

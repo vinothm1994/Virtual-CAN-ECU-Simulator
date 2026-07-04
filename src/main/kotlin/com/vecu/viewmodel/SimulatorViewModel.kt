@@ -6,6 +6,7 @@ import com.vecu.can.Pcan
 import com.vecu.can.PcanDriver
 import com.vecu.can.SocketCanDriver
 import com.vecu.config.AppConfig
+import com.vecu.config.EcuProfile
 import com.vecu.core.config.SimConfig
 import com.vecu.core.ecu.VirtualEcu
 import com.vecu.core.property.Property
@@ -32,14 +33,15 @@ import java.util.concurrent.atomic.AtomicLong
  * Owns all lifecycle: connect/disconnect, start/stop ECU.
  */
 class SimulatorViewModel(private val scope: CoroutineScope) {
-    private val dbc = DbcService()
-    private val ecu: VirtualEcu
-    private val scheduler: TxScheduler
-    private val driver: CanDriver
-    private val config: SimConfig
+    // The active profile's components; rebuilt by buildProfile() on a switch.
+    private lateinit var dbc: DbcService
+    private lateinit var ecu: VirtualEcu
+    private lateinit var scheduler: TxScheduler
+    private lateinit var driver: CanDriver
+    private lateinit var config: SimConfig
 
     /** Messages configured to transmit on-change (non-cyclic). */
-    private val onChangeMessages: List<String>
+    private var onChangeMessages: List<String> = emptyList()
     /** Last transmitted content per on-change message, for change detection. */
     private val lastSentValues = HashMap<String, Map<String, Double>>()
 
@@ -47,11 +49,16 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
     private val logLock = Any()
     private val timeFmt = DateTimeFormatter.ofPattern("HH:mm:ss.SSS")
 
+    /** ECU profiles selectable from the toolbar (HVAC, Vehicle, ...). */
+    val profiles: List<EcuProfile> = AppConfig.PROFILES
+
     // --- observable state ---
     private val _properties = MutableStateFlow<List<Property>>(emptyList())
     val properties: StateFlow<List<Property>> = _properties
 
-    val signalValues: StateFlow<Map<String, Double>>
+    // Decoupled from the ECU instance so it survives a profile switch.
+    private val _signalValues = MutableStateFlow<Map<String, Double>>(emptyMap())
+    val signalValues: StateFlow<Map<String, Double>> = _signalValues
 
     private val _canLog = MutableStateFlow<List<CanLogEntry>>(emptyList())
     val canLog: StateFlow<List<CanLogEntry>> = _canLog
@@ -62,20 +69,29 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
     private val _status = MutableStateFlow(SimStatus())
     val status: StateFlow<SimStatus> = _status
 
+    private val _activeProfile = MutableStateFlow(AppConfig.PROFILES[AppConfig.DEFAULT_PROFILE])
+    val activeProfile: StateFlow<EcuProfile> = _activeProfile
+
     private var tickJob: Job? = null
+    private var stateCollectJob: Job? = null
 
     init {
-        dbc.load(AppConfig.DBC_FILE)
-        log("INFO", "DBC loaded: ${AppConfig.DBC_FILE} (${dbc.schema.messages.size} messages)")
+        buildProfile(AppConfig.PROFILES[AppConfig.DEFAULT_PROFILE])
+        log("INFO", "Ready. Driver: ${driver.name}. Press Connect, then Start ECU.")
+    }
 
-        config = SimConfig.load(AppConfig.YAML_FILE)
-        log("INFO", "YAML loaded: ${AppConfig.YAML_FILE} — ECU '${config.ecuName}'")
+    /** Tears down the current ECU (if any) and builds everything for [profile]. */
+    private fun buildProfile(profile: EcuProfile) {
+        stateCollectJob?.cancel()
+        if (::dbc.isInitialized) dbc.close()
 
+        dbc = DbcService().apply { load(profile.dbc) }
+        config = SimConfig.load(profile.yaml)
         _properties.value = PropertyManager.build(config.widgets, dbc.schema)
-
         ecu = VirtualEcu(dbc.schema, RuleEngine(config.rules), config.defaults)
-        signalValues = ecu.state.flow
-        log("INFO", "Property model built: ${_properties.value.size} widgets")
+        onChangeMessages = config.tx.filter { it.onChange }.map { it.message }
+        lastSentValues.clear()
+        scheduler = TxScheduler(scope, config.tx, ::onScheduledTx)
 
         val iface = config.canInterface ?: AppConfig.CAN_INTERFACE
         driver = if (isWindows()) {
@@ -92,11 +108,25 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
         }
         driver.setListener(::onFrameReceived)
 
-        scheduler = TxScheduler(scope, config.tx, ::onScheduledTx)
-        onChangeMessages = config.tx.filter { it.onChange }.map { it.message }
+        // Mirror the active ECU's signal state into the exposed flow.
+        stateCollectJob = scope.launch { ecu.state.flow.collect { _signalValues.value = it } }
 
+        _activeProfile.value = profile
         _status.value = SimStatus(driverName = driver.name, ecuName = config.ecuName)
-        log("INFO", "Ready. Driver: ${driver.name}. Press Connect, then Start ECU.")
+        log(
+            "INFO",
+            "Loaded ${profile.name} ECU: ${profile.dbc} (${dbc.schema.messages.size} messages), " +
+                "${_properties.value.size} widgets",
+        )
+    }
+
+    /** Switches the simulated ECU, stopping and disconnecting the current one. */
+    fun selectProfile(name: String) {
+        if (name == _activeProfile.value.name) return
+        val profile = profiles.firstOrNull { it.name == name } ?: return
+        stopEcu()
+        disconnect()
+        buildProfile(profile)
     }
 
     // --- toolbar actions ---
@@ -161,6 +191,7 @@ class SimulatorViewModel(private val scope: CoroutineScope) {
     fun shutdown() {
         stopEcu()
         disconnect()
+        stateCollectJob?.cancel()
         dbc.close()
     }
 
