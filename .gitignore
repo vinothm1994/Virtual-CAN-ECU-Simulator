@@ -11,3 +11,6 @@ local.properties
 # OS / editor
 *.log
 .DS_Store
+
+# Kotlin build session cache
+/.kotlin/
