@@ -50,7 +50,14 @@ compose.desktop {
 // the .so is present at runtime. Idempotent: build.sh no-ops when up to date.
 val buildNative = tasks.register<Exec>("buildNative") {
     workingDir = file("native")
-    commandLine("bash", "build.sh")
+    val isWindows = System.getProperty("os.name")
+        .lowercase()
+        .contains("windows")
+    if (isWindows) {
+        commandLine("cmd", "/c", "buildNative.bat")
+    } else {
+        commandLine("bash", "build.sh")
+    }
     // Compile the JNI bridge against the same JDK that runs Gradle (the
     // provisioned JDK 11), so its headers are found.
     environment("JAVA_HOME", System.getProperty("java.home"))
