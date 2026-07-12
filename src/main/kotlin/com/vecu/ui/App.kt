@@ -1,5 +1,10 @@
 package com.vecu.ui
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -13,11 +18,20 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Article
+import androidx.compose.material.icons.filled.ChevronLeft
+import androidx.compose.material.icons.filled.ChevronRight
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.SwapHoriz
+import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
@@ -42,6 +56,10 @@ fun App(vm: SimulatorViewModel) {
     val values by vm.signalValues.collectAsState()
     val canLog by vm.canLog.collectAsState()
     val appLog by vm.appLog.collectAsState()
+
+    var showProperties by remember { mutableStateOf(true) }
+    var showCanMonitor by remember { mutableStateOf(true) }
+    var showAppLog by remember { mutableStateOf(true) }
 
     VecuTheme {
         Column(Modifier.fillMaxSize().background(Background)) {
@@ -73,10 +91,20 @@ fun App(vm: SimulatorViewModel) {
             }
 
             Row(Modifier.weight(1f).fillMaxWidth()) {
-                Box(Modifier.width(250.dp).fillMaxHeight().background(PanelSurface)) {
-                    PropertyPanel(properties, values)
+                VerticalRailTab(
+                    icon = Icons.Filled.ViewList,
+                    label = "Properties",
+                    checked = showProperties,
+                    onClick = { showProperties = !showProperties },
+                )
+                AnimatedVisibility(visible = showProperties, enter = expandHorizontally(), exit = shrinkHorizontally()) {
+                    Row {
+                        Box(Modifier.width(250.dp).fillMaxHeight().background(PanelSurface)) {
+                            PropertyPanel(properties, values, onCollapse = { showProperties = false })
+                        }
+                        VDivider()
+                    }
                 }
-                VDivider()
                 Column(Modifier.weight(1f).fillMaxHeight()) {
                     PanelHeader("Dynamic UI · ${status.ecuName} ECU")
                     LazyVerticalGrid(
@@ -88,16 +116,36 @@ fun App(vm: SimulatorViewModel) {
                         }
                     }
                 }
-                VDivider()
-                Box(Modifier.width(400.dp).fillMaxHeight().background(PanelSurface)) {
-                    CanMonitor(canLog)
+                AnimatedVisibility(visible = showCanMonitor, enter = expandHorizontally(), exit = shrinkHorizontally()) {
+                    Row {
+                        VDivider()
+                        Box(Modifier.width(400.dp).fillMaxHeight().background(PanelSurface)) {
+                            CanMonitor(canLog, onCollapse = { showCanMonitor = false })
+                        }
+                    }
                 }
+                VerticalRailTab(
+                    icon = Icons.Filled.SwapHoriz,
+                    label = "CAN Monitor",
+                    checked = showCanMonitor,
+                    onClick = { showCanMonitor = !showCanMonitor },
+                )
             }
 
-            Box(Modifier.fillMaxWidth().height(2.dp).background(DividerColor))
-            Box(Modifier.fillMaxWidth().height(150.dp).background(PanelSurface)) {
-                LogPanel(appLog)
+            AnimatedVisibility(visible = showAppLog, enter = expandVertically(), exit = shrinkVertically()) {
+                Column {
+                    Box(Modifier.fillMaxWidth().height(2.dp).background(DividerColor))
+                    Box(Modifier.fillMaxWidth().height(150.dp).background(PanelSurface)) {
+                        LogPanel(appLog, onCollapse = { showAppLog = false })
+                    }
+                }
             }
+            HorizontalRailTab(
+                icon = Icons.Filled.Article,
+                label = "Application Log",
+                checked = showAppLog,
+                onClick = { showAppLog = !showAppLog },
+            )
         }
     }
 }

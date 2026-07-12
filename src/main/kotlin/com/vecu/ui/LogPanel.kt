@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,9 +24,9 @@ import com.vecu.viewmodel.LogEntry
 
 /** Bottom panel: application log (lifecycle, errors, property updates). */
 @Composable
-fun LogPanel(entries: List<LogEntry>) {
+fun LogPanel(entries: List<LogEntry>, onCollapse: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
-        PanelHeader("Application Log")
+        PanelHeader("Application Log", Icons.Filled.KeyboardArrowDown, onCollapse)
         val listState = rememberLazyListState()
         LaunchedEffect(entries.size) {
             if (entries.isNotEmpty()) listState.scrollToItem(entries.lastIndex)

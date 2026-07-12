@@ -13,6 +13,8 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,9 +31,9 @@ import com.vecu.viewmodel.Direction
 
 /** Right panel: live RX/TX frames with decoded signals. */
 @Composable
-fun CanMonitor(entries: List<CanLogEntry>) {
+fun CanMonitor(entries: List<CanLogEntry>, onCollapse: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
-        PanelHeader("CAN Monitor · RX / TX")
+        PanelHeader("CAN Monitor · RX / TX", Icons.Filled.ChevronRight, onCollapse)
         val listState = rememberLazyListState()
         LaunchedEffect(entries.size) {
             if (entries.isNotEmpty()) listState.scrollToItem(entries.lastIndex)

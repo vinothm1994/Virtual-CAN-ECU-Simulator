@@ -8,6 +8,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -22,9 +24,9 @@ import com.vecu.core.property.WidgetType
 
 /** Left panel: a compact list of every ECU property and its live feedback value. */
 @Composable
-fun PropertyPanel(properties: List<Property>, values: Map<String, Double>) {
+fun PropertyPanel(properties: List<Property>, values: Map<String, Double>, onCollapse: () -> Unit) {
     Column(Modifier.fillMaxSize()) {
-        PanelHeader("Virtual ECU · Properties")
+        PanelHeader("Virtual ECU · Properties", Icons.Filled.ChevronLeft, onCollapse)
         LazyColumn(Modifier.fillMaxSize().padding(horizontal = 10.dp)) {
             items(properties, key = { it.id }) { p ->
                 val v = p.displaySignal?.let { values[it] } ?: 0.0
