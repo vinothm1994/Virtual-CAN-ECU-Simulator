@@ -38,8 +38,9 @@ rules:
   - { type: counter, to: SteeringCounter, wrap: 16 }
 
 tx:
-  - { message: VehicleStatus,      period_ms: 100 }
-  - { message: EngineStatus,       period_ms: 100 }
+
+  - { message: VehicleStatus,      period_ms: 10000, on_change: true }
+  - { message: EngineStatus,       period_ms: 10000, on_change: true }
   - { message: TransmissionStatus, on_change: true }   # gear = event-triggered
-  - { message: BodyStatus,         period_ms: 1000 }
+  - { message: BodyStatus,         period_ms: 10000, on_change: true}
   - { message: SteeringStatus,     period_ms: 100 }    # dead-reckoning input; as fast as the sim tick allows

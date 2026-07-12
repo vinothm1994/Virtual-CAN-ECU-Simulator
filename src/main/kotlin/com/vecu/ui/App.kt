@@ -105,7 +105,7 @@ fun App(vm: SimulatorViewModel) {
                         VDivider()
                     }
                 }
-                Column(Modifier.weight(1f).fillMaxHeight()) {
+                Column(Modifier.weight(2.3f).fillMaxHeight()) {
                     PanelHeader("Dynamic UI · ${status.ecuName} ECU")
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(230.dp),
@@ -116,10 +116,15 @@ fun App(vm: SimulatorViewModel) {
                         }
                     }
                 }
-                AnimatedVisibility(visible = showCanMonitor, enter = expandHorizontally(), exit = shrinkHorizontally()) {
-                    Row {
+                AnimatedVisibility(
+                    visible = showCanMonitor,
+                    modifier = Modifier.weight(.7f),
+                    enter = expandHorizontally(),
+                    exit = shrinkHorizontally(),
+                ) {
+                    Row(Modifier.fillMaxWidth().fillMaxHeight()) {
                         VDivider()
-                        Box(Modifier.width(400.dp).fillMaxHeight().background(PanelSurface)) {
+                        Box(Modifier.weight(1f).fillMaxHeight().background(PanelSurface)) {
                             CanMonitor(canLog, onCollapse = { showCanMonitor = false })
                         }
                     }

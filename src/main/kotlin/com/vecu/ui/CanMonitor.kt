@@ -90,7 +90,7 @@ private fun CanRow(e: CanLogEntry) {
                 fontFamily = FontFamily.Monospace,
                 color = Color(0xFF6E7B86),
                 modifier = Modifier.padding(start = 44.dp, top = 1.dp),
-                maxLines = 1,
+                maxLines = 10,
                 overflow = TextOverflow.Ellipsis,
             )
         }

@@ -32,7 +32,10 @@ fun main() = application {
         DisposableViewModel(vm)
     }
 
-    val windowState = rememberWindowState(width = 1440.dp, height = 900.dp)
+    // Comfortably fits a 1280x720 logical desktop (e.g. a 1920x1080 display at
+    // 150% scaling) with margin for the taskbar; the layout is fully responsive
+    // above and below this, so it also looks right maximized on larger screens.
+    val windowState = rememberWindowState(width = 1200.dp, height = 700.dp)
     Window(
         onCloseRequest = ::exitApplication,
         state = windowState,

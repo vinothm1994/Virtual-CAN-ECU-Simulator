@@ -29,7 +29,7 @@ object AppConfig {
     const val TICK_INTERVAL_MS = 100L
 
     /** How many CAN monitor / log rows to retain in the UI. */
-    const val MAX_LOG_ROWS = 300
+    const val MAX_LOG_ROWS = 300 * 10000
 
     /**
      * Candidate locations for the JNI bridge (dbcppp + SocketCAN). The first
