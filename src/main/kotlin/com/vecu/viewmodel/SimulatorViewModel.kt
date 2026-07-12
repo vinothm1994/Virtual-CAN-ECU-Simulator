@@ -63,8 +63,11 @@ class SimulatorViewModel {
     private val _activeProfile = MutableStateFlow(AppConfig.PROFILES[AppConfig.DEFAULT_PROFILE])
     val activeProfile: StateFlow<EcuProfile> = _activeProfile
 
-    // Bus selection, chosen in the UI (shared by all ECUs).
-    private val _canInterface = MutableStateFlow(AppConfig.CAN_INTERFACE)
+    // Bus selection, chosen in the UI (shared by all ECUs). Windows has no "vcan0"
+    // (that's Linux SocketCAN-only), so default to the first real PCAN channel there.
+    private val _canInterface = MutableStateFlow(
+        if (isWindows()) availableInterfaces().first() else AppConfig.CAN_INTERFACE,
+    )
     val canInterface: StateFlow<String> = _canInterface
     private val _canBaudrate = MutableStateFlow(AppConfig.CAN_BAUDRATE)
     val canBaudrate: StateFlow<String> = _canBaudrate
@@ -160,8 +163,10 @@ class SimulatorViewModel {
 
     fun connect() {
         if (_status.value.connected) return
+        val iface = resolveInterface(_canInterface.value)
+        if (iface != _canInterface.value) setInterface(iface) // keep the dropdown truthful
         try {
-            val d = buildDriver(_canInterface.value, _canBaudrate.value)
+            val d = buildDriver(iface, _canBaudrate.value)
             d.setListener(::onFrameReceived)
             d.open()
             driver = d
@@ -182,10 +187,14 @@ class SimulatorViewModel {
         log("INFO", "CAN disconnected")
     }
 
+    /** Resolves the UI's selected interface to a name valid for the current OS
+     *  (Windows can't use a SocketCAN name like "vcan0" — fall back to a real PCAN channel). */
+    private fun resolveInterface(iface: String): String =
+        if (isWindows() && !iface.uppercase().startsWith("PCAN_")) "PCAN_USBBUS1" else iface
+
     private fun buildDriver(iface: String, baud: String): CanDriver =
         if (isWindows()) {
-            val chName = if (iface.uppercase().startsWith("PCAN_")) iface else "PCAN_USBBUS1"
-            PcanDriver(Pcan.channel(chName), Pcan.baudrate(baud), chName)
+            PcanDriver(Pcan.channel(iface), Pcan.baudrate(baud), iface)
         } else {
             SocketCanDriver(iface)
         }
