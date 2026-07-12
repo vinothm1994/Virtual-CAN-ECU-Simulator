@@ -86,21 +86,23 @@ class EcuInstance(
     // Cyclic path (driven by the scheduler).
     private fun transmit(message: String) {
         if (!isBusOpen()) return
-        val values = ecu.buildTx(message)
+        val values = ecu.commitTx(message)
         val frame = dbc.encode(message, values) ?: return
-        lastSentValues[message] = values
         onTx(this, frame, message, values)
+        // Snapshot *after* commitTx, so the next on-change check compares
+        // like-for-like and doesn't mistake our own counter bump for a real change.
+        lastSentValues[message] = ecu.buildTx(message)
     }
 
     // On-change path (evaluated every tick).
     private fun evaluateOnChange() {
         if (onChangeMessages.isEmpty() || !isBusOpen()) return
         for (message in onChangeMessages) {
-            val values = ecu.buildTx(message)
-            if (lastSentValues[message] == values) continue
-            lastSentValues[message] = values
+            if (lastSentValues[message] == ecu.buildTx(message)) continue // peek, no side effects
+            val values = ecu.commitTx(message)
             val frame = dbc.encode(message, values) ?: continue
             onTx(this, frame, message, values)
+            lastSentValues[message] = ecu.buildTx(message)
         }
     }
 }

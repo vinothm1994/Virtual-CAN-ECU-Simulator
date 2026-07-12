@@ -10,15 +10,26 @@ import kotlin.math.min
  * into feedback — swapping the YAML changes the ECU with no code change.
  */
 class RuleEngine(private val rules: List<RuleSpec>) {
-    /** Applies every rule once to [state] (mutated in place). */
+    /** Applies every non-`counter` rule once to [state] (mutated in place).
+     *  `counter` is intentionally excluded: it advances once per actual CAN
+     *  transmission (see [advanceCounters]), not once per engine tick — a
+     *  rolling alive counter must increment "+1 per frame", not "+1 per 100ms",
+     *  or receivers would see phantom frame loss on every healthy send. */
     fun apply(state: MutableMap<String, Double>) {
         for (r in rules) {
             when (r.type.lowercase()) {
                 "mirror" -> mirror(r, state)
                 "scale" -> scale(r, state)
                 "ramp" -> ramp(r, state)
-                "counter" -> counter(r, state)
             }
+        }
+    }
+
+    /** Advances every `counter` rule whose target signal is in [signalNames] —
+     *  called right after a message is actually transmitted. */
+    fun advanceCounters(signalNames: Collection<String>, state: MutableMap<String, Double>) {
+        for (r in rules) {
+            if (r.type.lowercase() == "counter" && r.to in signalNames) counter(r, state)
         }
     }
 

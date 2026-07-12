@@ -11,7 +11,12 @@ import com.vecu.dbc.DecodedMessage
  *  - [onFrame] applies an incoming CAN request (from the IVI) to the state.
  *  - [setSignal] injects a request locally (from a UI control).
  *  - [tick] runs the rule engine to update feedback signals.
- *  - [buildTx] gathers a status message's current signal values for encoding.
+ *  - [buildTx] peeks a status message's current signal values (no side effects
+ *    — safe to call just to check "would this differ from what I last sent").
+ *  - [commitTx] is [buildTx] plus advancing any rolling alive-counter signals
+ *    the message carries; callers use this exactly once per actual transmit,
+ *    so a counter goes "+1 per frame sent", never "+1 per tick". The caller
+ *    (e.g. [com.vecu.core.ecu.EcuInstance]) never needs to know counters exist.
  */
 class VirtualEcu(
     private val schema: DbcSchema,
@@ -44,5 +49,17 @@ class VirtualEcu(
         val info = schema.messageByName[message] ?: return emptyMap()
         val snap = state.snapshot()
         return info.signalNames.associateWith { snap[it] ?: 0.0 }
+    }
+
+    /** The values to actually send for [message] — like [buildTx], but also
+     *  advances any rolling alive-counter signals it carries for next time.
+     *  Call exactly once per real transmit (never for a change-check peek). */
+    fun commitTx(message: String): Map<String, Double> {
+        val values = buildTx(message)
+        val info = schema.messageByName[message] ?: return values
+        val working = state.snapshot()
+        ruleEngine.advanceCounters(info.signalNames, working)
+        state.replace(working)
+        return values
     }
 }

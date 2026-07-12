@@ -112,15 +112,24 @@ fun main() {
     dbc.close()
 
     // --- Vehicle profile: rolling alive-counter rule (SteeringCounter). ---
+    // Advances once per actual transmit of its message, NOT per engine tick —
+    // ticking alone must never move it (that was the bug: it used to jump by
+    // (period_ms / tick_ms) per frame instead of by exactly 1).
     val vehicle = AppConfig.PROFILES.first { it.name == "Vehicle" }
     val vehDbc = DbcService().apply { load(vehicle.dbc) }
     val vehConfig = SimConfig.load(vehicle.yaml)
     val vehEcu = VirtualEcu(vehDbc.schema, RuleEngine(vehConfig.rules), vehConfig.defaults)
     repeat(20) { vehEcu.tick() }
     check(
-        "SteeringCounter rolls over 0..15",
+        "Ticking alone does not advance SteeringCounter",
+        vehEcu.state.get("SteeringCounter") == 0.0,
+        "= ${vehEcu.state.get("SteeringCounter")} (expected 0.0 — only commitTx() should move it)",
+    )
+    repeat(20) { vehEcu.commitTx("SteeringStatus") }
+    check(
+        "SteeringCounter rolls over 0..15, +1 per transmit",
         vehEcu.state.get("SteeringCounter") == 4.0,
-        "= ${vehEcu.state.get("SteeringCounter")} (expected 4.0 after 20 ticks, wraps at 16)",
+        "= ${vehEcu.state.get("SteeringCounter")} (expected 4.0 after 20 transmits, wraps at 16)",
     )
     vehDbc.close()
 

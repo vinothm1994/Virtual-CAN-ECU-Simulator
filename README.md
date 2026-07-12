@@ -216,11 +216,13 @@ Applied in order, every tick, over the ECU's signal state.
 | `mirror` | `to = from` | `from`, `to`, `gatedBy?`, `onlyWhen?` |
 | `scale` | `to = from × factor` | `from`, `to`, `factor`, `gatedBy?` |
 | `ramp` | `to` moves toward `toward` by `rate` per tick | `to`, `toward`, `rate` |
-| `counter` | `to` increments by `rate` (default 1) per tick, wraps to `0` at `wrap` | `to`, `wrap`, `rate?` |
+| `counter` | `to` increments by `rate` (default 1) per **actual transmit** of its message, wraps to `0` at `wrap` | `to`, `wrap`, `rate?` |
 
 - `gatedBy: SIG` — forces the result to `0` when `SIG` is off (e.g. everything off when power is off).
 - `onlyWhen: SIG` — skips the rule unless `SIG` is on (e.g. passenger temp follows driver only in dual mode).
 - `counter` is for rolling alive counters (e.g. `wrap: 16` → cycles 0..15) so receivers can detect frame loss.
+  It advances once per actual transmit (cyclic or on-change), never per tick — a real alive counter must go
+  "+1 per frame", not "+1 per tick", or a receiver would see phantom frame loss on every healthy send.
 
 ### Transmission (`tx:`)
 
