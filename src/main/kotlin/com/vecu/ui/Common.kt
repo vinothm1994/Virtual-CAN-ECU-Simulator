@@ -8,6 +8,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
@@ -23,5 +24,7 @@ fun PanelHeader(title: String) {
         fontSize = 12.sp,
         fontWeight = FontWeight.Bold,
         color = Color(0xFF8FA0AE),
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
     )
 }

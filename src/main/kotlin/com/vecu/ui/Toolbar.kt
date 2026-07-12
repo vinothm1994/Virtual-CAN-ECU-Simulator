@@ -1,6 +1,7 @@
 package com.vecu.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
@@ -57,6 +59,7 @@ fun Toolbar(
     Row(
         modifier = Modifier
             .background(Color(0xFF1B2129))
+            .horizontalScroll(rememberScrollState())
             .padding(horizontal = 12.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -109,11 +112,6 @@ fun Toolbar(
             status.ecuRunning,
             if (status.ecuRunning) "running (${status.ecuCount})" else "stopped",
         )
-
-        status.lastError?.let {
-            Spacer(Modifier.width(12.dp))
-            Text("⚠ $it", color = VecuColors.error, fontSize = 12.sp)
-        }
     }
 }
 
@@ -192,6 +190,7 @@ private fun StatusDot(label: String, active: Boolean, detail: String) {
             fontSize = 12.sp,
             fontFamily = FontFamily.Monospace,
             color = Color(0xFFB6C0CA),
+            softWrap = false,
         )
     }
 }

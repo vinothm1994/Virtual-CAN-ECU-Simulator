@@ -63,8 +63,15 @@ fun DynamicWidget(
             WidgetType.TEMPERATURE -> TemperatureWidget(property, control, onChange)
             WidgetType.DROPDOWN -> DropdownWidget(property, control, onChange)
             WidgetType.GAUGE -> GaugeWidget(property, feedback)
-            WidgetType.LABEL -> Text(valueText(property, feedback), fontSize = 20.sp)
-            WidgetType.BUTTON -> OutlinedButton(onClick = { onChange(1.0) }) { Text(property.title) }
+            WidgetType.LABEL -> Text(
+                valueText(property, feedback),
+                fontSize = 20.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            WidgetType.BUTTON -> OutlinedButton(onClick = { onChange(1.0) }) {
+                Text(property.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
         }
     }
 }
@@ -111,7 +118,13 @@ private fun SwitchWidget(control: Double, onChange: (Double) -> Unit) {
     val checked = control >= 0.5
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
         Switch(checked = checked, onCheckedChange = { onChange(if (it) 1.0 else 0.0) })
-        Text(if (checked) "Requested ON" else "Requested OFF", fontSize = 12.sp, color = Color(0xFFB6C0CA))
+        Text(
+            if (checked) "Requested ON" else "Requested OFF",
+            fontSize = 12.sp,
+            color = Color(0xFFB6C0CA),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 
@@ -119,7 +132,7 @@ private fun SwitchWidget(control: Double, onChange: (Double) -> Unit) {
 private fun SliderWidget(property: Property, control: Double, onChange: (Double) -> Unit) {
     val steps = discreteSteps(property)
     Column {
-        Text(fmt(control), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text(fmt(control), fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Slider(
             value = control.coerceIn(property.min, property.max).toFloat(),
             onValueChange = { onChange(snap(it.toDouble(), property)) },
@@ -133,8 +146,14 @@ private fun SliderWidget(property: Property, control: Double, onChange: (Double)
 private fun TemperatureWidget(property: Property, control: Double, onChange: (Double) -> Unit) {
     Column {
         Row(verticalAlignment = Alignment.Bottom) {
-            Text("%.1f".format(control), fontSize = 26.sp, fontWeight = FontWeight.Bold)
-            Text(" °C", fontSize = 14.sp, color = Color(0xFFB6C0CA))
+            Text(
+                "%.1f".format(control),
+                fontSize = 26.sp,
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Text(" °C", fontSize = 14.sp, color = Color(0xFFB6C0CA), maxLines = 1, softWrap = false)
         }
         Slider(
             value = control.coerceIn(property.min, property.max).toFloat(),
@@ -150,7 +169,9 @@ private fun DropdownWidget(property: Property, control: Double, onChange: (Doubl
     var expanded by remember { mutableStateOf(false) }
     val current = property.options.firstOrNull { it.value == control }?.label ?: fmt(control)
     Box {
-        OutlinedButton(onClick = { expanded = true }) { Text(current) }
+        OutlinedButton(onClick = { expanded = true }) {
+            Text(current, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        }
         DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
             property.options.forEach { opt ->
                 DropdownMenuItem(
@@ -179,9 +200,9 @@ private fun GaugeWidget(property: Property, feedback: Double) {
             drawArc(fill, 180f, (180f * frac).toFloat(), false, topLeft, arcSize, style = Stroke(stroke, cap = StrokeCap.Round))
         }
         Column {
-            Text(fmt(feedback), fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text(fmt(feedback), fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
             if (property.unit.isNotBlank()) {
-                Text(property.unit, fontSize = 12.sp, color = Color(0xFFB6C0CA))
+                Text(property.unit, fontSize = 12.sp, color = Color(0xFFB6C0CA), maxLines = 1, softWrap = false)
             }
         }
     }

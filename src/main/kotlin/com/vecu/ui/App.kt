@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.grid.GridCells
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -20,11 +21,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.vecu.viewmodel.SimulatorViewModel
 
 private val Background = Color(0xFF101418)
 private val PanelSurface = Color(0xFF161B21)
 private val DividerColor = Color(0xFF0B0E11)
+private val ErrorBannerBg = Color(0xFF3A1A1A)
 
 /** Root layout: toolbar, three panels (properties / dynamic UI / CAN monitor), log. */
 @Composable
@@ -62,6 +65,12 @@ fun App(vm: SimulatorViewModel) {
                 onStop = vm::stopEcu,
                 onClear = vm::clearLog,
             )
+
+            status.lastError?.let { err ->
+                Box(Modifier.fillMaxWidth().background(ErrorBannerBg).padding(horizontal = 12.dp, vertical = 6.dp)) {
+                    Text("⚠ $err", color = VecuColors.error, fontSize = 12.sp)
+                }
+            }
 
             Row(Modifier.weight(1f).fillMaxWidth()) {
                 Box(Modifier.width(250.dp).fillMaxHeight().background(PanelSurface)) {

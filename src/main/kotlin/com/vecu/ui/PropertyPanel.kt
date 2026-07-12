@@ -14,6 +14,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vecu.core.property.Property
@@ -31,12 +32,21 @@ fun PropertyPanel(properties: List<Property>, values: Map<String, Double>) {
                     Modifier.fillMaxWidth().padding(vertical = 5.dp),
                     horizontalArrangement = Arrangement.SpaceBetween,
                 ) {
-                    Text(p.title, fontSize = 13.sp, color = Color(0xFFD4DAE0))
+                    Text(
+                        p.title,
+                        fontSize = 13.sp,
+                        color = Color(0xFFD4DAE0),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false).padding(end = 6.dp),
+                    )
                     Text(
                         display(p, v),
                         fontSize = 13.sp,
                         fontFamily = FontFamily.Monospace,
                         color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        softWrap = false,
                     )
                 }
             }

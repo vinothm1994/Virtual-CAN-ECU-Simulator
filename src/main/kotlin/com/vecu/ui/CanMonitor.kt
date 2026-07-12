@@ -21,6 +21,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vecu.viewmodel.CanLogEntry
@@ -47,14 +48,28 @@ private fun CanRow(e: CanLogEntry) {
         Row(verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
             DirectionTag(e.direction)
             Spacer(Modifier.width(8.dp))
-            Text(e.time, fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = Color(0xFF7A8792))
+            Text(e.time, fontSize = 11.sp, fontFamily = FontFamily.Monospace, color = Color(0xFF7A8792), maxLines = 1, softWrap = false)
             Spacer(Modifier.width(8.dp))
-            Text(e.idHex, fontSize = 12.sp, fontFamily = FontFamily.Monospace, color = Color(0xFFD4DAE0), fontWeight = FontWeight.Bold)
+            Text(
+                e.idHex,
+                fontSize = 12.sp,
+                fontFamily = FontFamily.Monospace,
+                color = Color(0xFFD4DAE0),
+                fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                softWrap = false,
+            )
             Spacer(Modifier.width(8.dp))
-            Text(e.message, fontSize = 12.sp, color = Color(0xFF9FB0BC))
+            Text(
+                e.message,
+                fontSize = 12.sp,
+                color = Color(0xFF9FB0BC),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             e.ecu?.let {
                 Spacer(Modifier.width(6.dp))
-                Text("· $it", fontSize = 11.sp, color = Color(0xFF6E7B86))
+                Text("· $it", fontSize = 11.sp, color = Color(0xFF6E7B86), maxLines = 1, softWrap = false)
             }
         }
         Text(
@@ -63,6 +78,8 @@ private fun CanRow(e: CanLogEntry) {
             fontFamily = FontFamily.Monospace,
             color = Color(0xFFB6C0CA),
             modifier = Modifier.padding(start = 44.dp),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         if (e.decoded.isNotEmpty()) {
             Text(
@@ -71,6 +88,8 @@ private fun CanRow(e: CanLogEntry) {
                 fontFamily = FontFamily.Monospace,
                 color = Color(0xFF6E7B86),
                 modifier = Modifier.padding(start = 44.dp, top = 1.dp),
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
             )
         }
     }
@@ -89,6 +108,8 @@ private fun DirectionTag(dir: Direction) {
         fontSize = 10.sp,
         fontFamily = FontFamily.Monospace,
         fontWeight = FontWeight.Bold,
+        maxLines = 1,
+        softWrap = false,
     )
 }
 
