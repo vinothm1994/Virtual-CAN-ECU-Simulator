@@ -29,7 +29,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontFamily
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vecu.viewmodel.SimStatus
@@ -64,14 +63,6 @@ fun Toolbar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            "Virtual CAN ECU",
-            fontWeight = FontWeight.Bold,
-            fontSize = 15.sp,
-            color = Color(0xFFE2E6EA),
-        )
-        Spacer(Modifier.width(4.dp))
-
         ProfileSelector(profiles, activeProfile, onSelectProfile)
         Spacer(Modifier.width(4.dp))
 

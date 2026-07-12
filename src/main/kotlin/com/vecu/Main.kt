@@ -1,12 +1,17 @@
 package com.vecu
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
 import com.vecu.ui.App
 import com.vecu.ui.ErrorScreen
+import com.vecu.ui.TitleBar
 import com.vecu.viewmodel.SimulatorViewModel
 
 /**
@@ -32,11 +37,17 @@ fun main() = application {
         onCloseRequest = ::exitApplication,
         state = windowState,
         title = "Virtual CAN ECU Simulator",
+        undecorated = true,
     ) {
-        if (vm != null) {
-            App(vm)
-        } else {
-            ErrorScreen(result.exceptionOrNull()?.message ?: "unknown error")
+        Column(Modifier.fillMaxSize()) {
+            TitleBar("Virtual CAN ECU Simulator", windowState, onClose = ::exitApplication)
+            Box(Modifier.weight(1f).fillMaxSize()) {
+                if (vm != null) {
+                    App(vm)
+                } else {
+                    ErrorScreen(result.exceptionOrNull()?.message ?: "unknown error")
+                }
+            }
         }
     }
 }
