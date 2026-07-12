@@ -110,6 +110,20 @@ fun main() {
     check("Air distribution persists on power off", off["HvacFanDirection"] == 2.0, "${off["HvacFanDirection"]}")
 
     dbc.close()
+
+    // --- Vehicle profile: rolling alive-counter rule (SteeringCounter). ---
+    val vehicle = AppConfig.PROFILES.first { it.name == "Vehicle" }
+    val vehDbc = DbcService().apply { load(vehicle.dbc) }
+    val vehConfig = SimConfig.load(vehicle.yaml)
+    val vehEcu = VirtualEcu(vehDbc.schema, RuleEngine(vehConfig.rules), vehConfig.defaults)
+    repeat(20) { vehEcu.tick() }
+    check(
+        "SteeringCounter rolls over 0..15",
+        vehEcu.state.get("SteeringCounter") == 4.0,
+        "= ${vehEcu.state.get("SteeringCounter")} (expected 4.0 after 20 ticks, wraps at 16)",
+    )
+    vehDbc.close()
+
     println("=== ${if (failures == 0) "ALL PASSED" else "$failures FAILED"} ===")
     if (failures > 0) kotlin.system.exitProcess(1)
 }

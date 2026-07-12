@@ -99,7 +99,7 @@ src/main/kotlin/com/vecu/
 ├── core/
 │   ├── config/                 SimConfig (YAML: widgets, rules, tx, defaults)
 │   ├── property/               Property, PropertyManager, WidgetType
-│   ├── rule/                   RuleEngine (mirror / scale / ramp)
+│   ├── rule/                   RuleEngine (mirror / scale / ramp / counter)
 │   ├── ecu/                    EcuInstance (per-profile runtime), VirtualEcu, EcuState
 │   └── scheduler/              TxScheduler (cyclic / on-change TX)
 ├── viewmodel/                  SimulatorViewModel, UiState
@@ -140,8 +140,8 @@ then **Connect** → **Start ECU** (run rules + periodic TX).
 ```
 
 Exercises the whole pipeline — DBC load, property build, rule engine
-(mirror/gate/scale/ramp), encode/decode round-trip, power-off gating — and
-prints PASS/FAIL per check.
+(mirror/gate/scale/ramp/counter), encode/decode round-trip, power-off gating —
+and prints PASS/FAIL per check.
 
 ## Live bus test
 
@@ -216,9 +216,11 @@ Applied in order, every tick, over the ECU's signal state.
 | `mirror` | `to = from` | `from`, `to`, `gatedBy?`, `onlyWhen?` |
 | `scale` | `to = from × factor` | `from`, `to`, `factor`, `gatedBy?` |
 | `ramp` | `to` moves toward `toward` by `rate` per tick | `to`, `toward`, `rate` |
+| `counter` | `to` increments by `rate` (default 1) per tick, wraps to `0` at `wrap` | `to`, `wrap`, `rate?` |
 
 - `gatedBy: SIG` — forces the result to `0` when `SIG` is off (e.g. everything off when power is off).
 - `onlyWhen: SIG` — skips the rule unless `SIG` is on (e.g. passenger temp follows driver only in dual mode).
+- `counter` is for rolling alive counters (e.g. `wrap: 16` → cycles 0..15) so receivers can detect frame loss.
 
 ### Transmission (`tx:`)
 

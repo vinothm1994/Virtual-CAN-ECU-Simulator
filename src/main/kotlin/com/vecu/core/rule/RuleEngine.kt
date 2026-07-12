@@ -17,6 +17,7 @@ class RuleEngine(private val rules: List<RuleSpec>) {
                 "mirror" -> mirror(r, state)
                 "scale" -> scale(r, state)
                 "ramp" -> ramp(r, state)
+                "counter" -> counter(r, state)
             }
         }
     }
@@ -49,6 +50,14 @@ class RuleEngine(private val rules: List<RuleSpec>) {
             cur > target -> max(cur - rate, target)
             else -> cur
         }
+    }
+
+    private fun counter(r: RuleSpec, state: MutableMap<String, Double>) {
+        val to = r.to ?: return
+        val wrap = r.wrap ?: return
+        val step = r.rate ?: 1.0
+        val cur = state[to] ?: 0.0
+        state[to] = (cur + step) % wrap
     }
 
     private fun on(state: Map<String, Double>, signal: String): Boolean =

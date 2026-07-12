@@ -14,14 +14,17 @@ data class WidgetSpec(
     val min: Double?,
     val max: Double?,
     val step: Double?,
+    val snapZero: Boolean = false,
 )
 
 /**
  * A simulation rule. [type] selects the behaviour:
- *  - `mirror`: `to = from`, forced to 0 when [gatedBy] is off; skipped unless
+ *  - `mirror`:  `to = from`, forced to 0 when [gatedBy] is off; skipped unless
  *    [onlyWhen] is on (when set).
- *  - `scale`:  `to = from * factor` (also honours [gatedBy]).
- *  - `ramp`:   `to` moves toward [toward] by [rate] per tick.
+ *  - `scale`:   `to = from * factor` (also honours [gatedBy]).
+ *  - `ramp`:    `to` moves toward [toward] by [rate] per tick.
+ *  - `counter`: `to` increments by [rate] (default 1) per tick and wraps back
+ *    to 0 at [wrap] — a rolling alive counter (e.g. `wrap: 16` => 0..15).
  */
 data class RuleSpec(
     val type: String,
@@ -32,6 +35,7 @@ data class RuleSpec(
     val onlyWhen: String? = null,
     val rate: Double? = null,
     val factor: Double? = null,
+    val wrap: Double? = null,
 )
 
 /**
@@ -76,6 +80,7 @@ data class SimConfig(
                     min = w["min"].dbl(),
                     max = w["max"].dbl(),
                     step = w["step"].dbl(),
+                    snapZero = w["snap_zero"] as? Boolean ?: false,
                 )
             }
 
@@ -89,6 +94,7 @@ data class SimConfig(
                     onlyWhen = r["onlyWhen"] as? String,
                     rate = r["rate"].dbl(),
                     factor = r["factor"].dbl(),
+                    wrap = r["wrap"].dbl(),
                 )
             }
 

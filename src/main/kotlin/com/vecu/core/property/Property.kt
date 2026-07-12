@@ -39,6 +39,7 @@ data class Property(
     val step: Double,
     val unit: String,
     val options: List<EnumOption>,
+    val snapZero: Boolean = false,
 ) {
     /** The signal whose live value the widget primarily displays. */
     val displaySignal: String? get() = feedbackSignal ?: requestSignal

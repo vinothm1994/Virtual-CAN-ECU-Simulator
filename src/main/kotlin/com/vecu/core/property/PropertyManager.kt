@@ -37,6 +37,7 @@ object PropertyManager {
             step = step,
             unit = sig?.unit.orEmpty(),
             options = options,
+            snapZero = spec.snapZero,
         )
     }
 

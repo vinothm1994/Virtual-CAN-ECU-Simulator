@@ -135,7 +135,14 @@ private fun SliderWidget(property: Property, control: Double, onChange: (Double)
         Text(fmt(control), fontSize = 22.sp, fontWeight = FontWeight.Bold, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Slider(
             value = control.coerceIn(property.min, property.max).toFloat(),
-            onValueChange = { onChange(snap(it.toDouble(), property)) },
+            onValueChange = { raw ->
+                var v = snap(raw.toDouble(), property)
+                if (property.snapZero) {
+                    val threshold = (property.max - property.min) * 0.025
+                    if (kotlin.math.abs(v) <= threshold) v = 0.0
+                }
+                onChange(v)
+            },
             valueRange = property.min.toFloat()..property.max.toFloat(),
             steps = steps,
         )
