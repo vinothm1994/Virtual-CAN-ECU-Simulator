@@ -1,6 +1,7 @@
 # Build outputs
 /build/
 /native/build/
+/appResources/
 .gradle/
 
 # IDE / local machine config (never commit)
