@@ -1,0 +1,83 @@
+VERSION ""
+
+NS_ :
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: ECU IVI
+
+BO_ 768 BatteryStatus: 8 ECU
+ SG_ StateOfCharge : 0|16@1+ (0.1,0) [0|6553.5] "%" IVI
+ SG_ StateOfHealth : 16|8@1+ (1,0) [0|255] "%" IVI
+ SG_ BatteryState : 24|4@1+ (1,0) [0|15] "" IVI
+ SG_ ContactorState : 28|2@1+ (1,0) [0|3] "" IVI
+ SG_ HvActive : 30|1@1+ (1,0) [0|1] "" IVI
+ SG_ IsolationFault : 31|1@1+ (1,0) [0|1] "" IVI
+
+BO_ 769 BatteryElectrical: 8 ECU
+ SG_ PackVoltage : 0|16@1+ (0.1,0) [0|6553.5] "V" IVI
+ SG_ PackCurrent : 16|16@1- (0.1,0) [-3276.8|3276.7] "A" IVI
+ SG_ MinCellVoltage : 32|16@1+ (0.001,0) [0|65.535] "V" IVI
+ SG_ MaxCellVoltage : 48|16@1+ (0.001,0) [0|65.535] "V" IVI
+
+BO_ 770 BatteryTemperature: 8 ECU
+ SG_ BatteryTempMin : 0|16@1- (0.1,0) [-3276.8|3276.7] "degC" IVI
+ SG_ BatteryTempMax : 16|16@1- (0.1,0) [-3276.8|3276.7] "degC" IVI
+ SG_ BatteryTempAvg : 32|16@1- (0.1,0) [-3276.8|3276.7] "degC" IVI
+ SG_ ThermalState : 48|4@1+ (1,0) [0|15] "" IVI
+
+BO_ 771 BatteryEnergy: 8 ECU
+ SG_ RemainingEnergyKwh : 0|16@1+ (0.1,0) [0|6553.5] "kWh" IVI
+ SG_ UsableEnergyKwh : 16|16@1+ (0.1,0) [0|6553.5] "kWh" IVI
+ SG_ EstimatedRangeKm : 32|16@1+ (1,0) [0|65535] "km" IVI
+ SG_ PowerLimitDischargeKw : 48|8@1+ (1,0) [0|255] "kW" IVI
+ SG_ PowerLimitChargeKw : 56|8@1+ (1,0) [0|255] "kW" IVI
+
+CM_ "High-voltage traction battery, owned by the BMS. Active on any powertrain
+with the HV_BATTERY capability: MHEV, HEV, PHEV, BEV. CAN ID range 0x300-0x33F.
+
+READ-ONLY BY DESIGN. There is deliberately no command frame in this file: the
+IVI never commands the battery. Charge limits go to the on-board charger
+(charging.dbc ChargingControl), not here. The domain manifest marks this domain
+readOnly and the gateway refuses to start if it ever grows a control service.";
+CM_ BO_ 768 "Pack state of charge, health and contactor/isolation status";
+CM_ BO_ 769 "Pack terminal voltage and current, and cell voltage extremes";
+CM_ BO_ 770 "Pack temperature extremes and thermal management state";
+CM_ BO_ 771 "Energy content, range estimate and instantaneous power limits";
+CM_ SG_ 768 StateOfCharge "Usable state of charge, 0.1 % per bit. Drives the main EV gauge.";
+CM_ SG_ 768 IsolationFault "HV isolation fault: a safety-critical telltale, never rate-limit it";
+CM_ SG_ 769 PackCurrent "Pack current, 0.1 A per bit, SIGNED: positive = discharge, negative = charge. The sign is the whole point - losing it would make charging look like driving.";
+CM_ SG_ 771 EstimatedRangeKm "Remaining range on battery alone";
+CM_ SG_ 771 PowerLimitDischargeKw "Instantaneous discharge power the pack allows; the cluster power bar clamps to this";
+
+VAL_ 768 BatteryState 0 "idle" 1 "discharging" 2 "charging" 3 "balancing" 4 "fault" ;
+VAL_ 768 ContactorState 0 "open" 1 "precharge" 2 "closed" 3 "fault" ;
+VAL_ 770 ThermalState 0 "inactive" 1 "cooling" 2 "heating" 3 "fault" ;

@@ -36,10 +36,30 @@ BU_: ECU IVI
 
 BO_ 256 VehicleStatus: 8 ECU
  SG_ VehicleSpeed : 0|16@1+ (0.01,0) [0|655.35] "km/h" IVI
- SG_ DriveModeState : 16|8@1+ (1,0) [0|255] "" IVI
+
+BO_ 257 VehicleConfiguration: 8 ECU
+ SG_ PowertrainType : 0|4@1+ (1,0) [0|15] "" IVI
+ SG_ DrivenAxle : 4|4@1+ (1,0) [0|15] "" IVI
+ SG_ VehicleVariant : 8|8@1+ (1,0) [0|255] "" IVI
+ SG_ ConfigCounter : 16|4@1+ (1,0) [0|15] "" IVI
+ SG_ ConfigCrc : 32|16@1+ (1,0) [0|65535] "" IVI
 
 BO_ 258 TransmissionStatus: 8 ECU
  SG_ GearPosition : 0|8@1+ (1,0) [0|255] "" IVI
+
+BO_ 259 DriveModeStatus: 8 ECU
+ SG_ DriveModeState : 0|8@1+ (1,0) [0|255] "" IVI
+ SG_ DriveModeAvailableMask : 8|8@1+ (1,0) [0|255] "" IVI
+
+BO_ 260 IgnitionStatus: 8 ECU
+ SG_ IgnitionState : 0|4@1+ (1,0) [0|15] "" IVI
+ SG_ ReadyToDrive : 4|1@1+ (1,0) [0|1] "" IVI
+ SG_ KeyPresent : 5|1@1+ (1,0) [0|1] "" IVI
+
+BO_ 261 OdometerStatus: 8 ECU
+ SG_ Odometer : 0|32@1+ (0.1,0) [0|429496729.5] "km" IVI
+ SG_ TripA : 32|16@1+ (0.1,0) [0|6553.5] "km" IVI
+ SG_ TripB : 48|16@1+ (0.1,0) [0|6553.5] "km" IVI
 
 BO_ 288 SteeringStatus: 8 ECU
  SG_ SteeringWheelAngle : 0|16@1- (0.1,0) [-3276.8|3276.7] "deg" IVI
@@ -55,15 +75,29 @@ Engine and fuel signals used to live here; they moved to powertrain.dbc
 the COMBUSTION capability. CAN ID ranges owned by this file: 0x100-0x13F status,
 0x1A0-0x1BF commands. Do not add domain-specific signals here.";
 CM_ BO_ 256 "Cyclic vehicle speed status";
+CM_ BO_ 257 "Vehicle configuration: what kind of vehicle this is. Cyclic at 1 Hz and on ignition-on. The gateway's deployment config is authoritative; this frame is a cross-check, and a mismatch is a fault rather than a reason to re-compose the service set at runtime.";
 CM_ BO_ 258 "Selected gear position";
+CM_ BO_ 259 "Drive mode: which is active, and which the vehicle offers";
+CM_ BO_ 260 "Ignition / power mode, and whether the vehicle is ready to drive";
+CM_ BO_ 261 "Odometer and trip meters";
 CM_ BO_ 288 "Steering-only status for dead-reckoning; cyclic @50Hz (20ms)";
 CM_ BO_ 272 "Drive-mode command from IVI (cluster TX path)";
 CM_ SG_ 256 VehicleSpeed "Road speed, 0.01 km/h per bit";
-CM_ SG_ 256 DriveModeState "Active drive mode (read-back of DriveModeReq)";
+CM_ SG_ 257 PowertrainType "0=ICE 1=MHEV 2=HEV 3=PHEV 4=BEV, 15=unknown";
+CM_ SG_ 257 ConfigCrc "CRC over the configuration payload; a mismatch is a fault, not a reason to guess";
+CM_ SG_ 257 ConfigCounter "Rolling alive counter 0..15, +1 per frame, wraps";
+CM_ SG_ 259 DriveModeState "Active drive mode (read-back of DriveModeReq)";
+CM_ SG_ 259 DriveModeAvailableMask "Bitmask of modes this vehicle offers; bit N = mode N. Lets the HMI grey out modes instead of hard-coding which exist per powertrain";
+CM_ SG_ 260 IgnitionState "0=off 1=acc 2=on 3=start";
+CM_ SG_ 260 ReadyToDrive "The EV READY lamp: powertrain engaged and the vehicle will move when asked. On a hybrid this is true with the engine off";
+CM_ SG_ 261 Odometer "Total distance, 0.1 km per bit";
 CM_ SG_ 288 SteeringWheelAngle "Absolute steering-wheel angle, 0.1 deg/bit, signed; operating range -720..+720 deg (+ = left/CCW)";
 CM_ SG_ 288 SteeringCounter "Rolling alive counter 0..15, +1 per frame, wraps; receiver detects loss via (rx != (prev+1) mod 16)";
 CM_ SG_ 272 DriveModeReq "Requested drive mode";
 
-VAL_ 256 DriveModeState 0 "normal" 1 "eco" 2 "sport" 3 "snow" ;
+VAL_ 257 PowertrainType 0 "ICE" 1 "MHEV" 2 "HEV" 3 "PHEV" 4 "BEV" 15 "unknown" ;
+VAL_ 257 DrivenAxle 0 "FWD" 1 "RWD" 2 "AWD" ;
 VAL_ 258 GearPosition 0 "P" 1 "R" 2 "N" 3 "D" 4 "S" 5 "L" ;
+VAL_ 259 DriveModeState 0 "normal" 1 "eco" 2 "sport" 3 "snow" ;
+VAL_ 260 IgnitionState 0 "off" 1 "acc" 2 "on" 3 "start" ;
 VAL_ 272 DriveModeReq 0 "normal" 1 "eco" 2 "sport" 3 "snow" ;

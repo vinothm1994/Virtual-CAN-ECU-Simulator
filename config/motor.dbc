@@ -1,0 +1,65 @@
+VERSION ""
+
+NS_ :
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: ECU IVI
+
+BO_ 832 MotorStatus: 8 ECU
+ SG_ MotorSpeedRpm : 0|16@1- (1,0) [-32768|32767] "rpm" IVI
+ SG_ MotorTorqueNm : 16|16@1- (1,0) [-32768|32767] "Nm" IVI
+ SG_ MotorPowerKw : 32|16@1- (0.1,0) [-3276.8|3276.7] "kW" IVI
+ SG_ MotorState : 48|4@1+ (1,0) [0|15] "" IVI
+ SG_ InverterState : 52|4@1+ (1,0) [0|15] "" IVI
+
+BO_ 833 MotorThermal: 8 ECU
+ SG_ MotorTempC : 0|16@1- (0.1,0) [-3276.8|3276.7] "degC" IVI
+ SG_ InverterTempC : 16|16@1- (0.1,0) [-3276.8|3276.7] "degC" IVI
+ SG_ DeratingActive : 32|1@1+ (1,0) [0|1] "" IVI
+ SG_ DerateLevel : 33|2@1+ (1,0) [0|3] "" IVI
+
+CM_ "Traction e-motor and its inverter. Active on any powertrain with the EMOTOR
+capability: MHEV (belt starter-generator, assist only), HEV, PHEV, BEV. CAN ID
+range 0x340-0x35F.
+
+READ-ONLY BY DESIGN, now and later: the IVI does not command the motor. Torque
+requests come from the vehicle control unit over its own path, never from the
+cluster. There is no MotorControl interface and none is planned.";
+CM_ BO_ 832 "Motor speed, torque and shaft power, plus motor/inverter state";
+CM_ BO_ 833 "Motor and inverter temperatures, and thermal derating";
+CM_ SG_ 832 MotorSpeedRpm "Signed: negative when the shaft turns in reverse";
+CM_ SG_ 832 MotorPowerKw "Shaft power, 0.1 kW per bit, SIGNED: positive = driving, NEGATIVE = regenerating. This is the EV replacement for the tachometer, and the sign is what makes a power/regen bar possible.";
+CM_ SG_ 833 DeratingActive "The motor is limiting output to protect itself; the cluster should show reduced power rather than let the driver think the car is broken";
+
+VAL_ 832 MotorState 0 "off" 1 "ready" 2 "driving" 3 "regenerating" 4 "fault" ;
+VAL_ 832 InverterState 0 "off" 1 "precharge" 2 "active" 3 "fault" ;
+VAL_ 833 DerateLevel 0 "none" 1 "mild" 2 "moderate" 3 "severe" ;

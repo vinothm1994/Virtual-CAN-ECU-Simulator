@@ -1,0 +1,55 @@
+# Virtual HV Battery ECU (BMS). Present on anything with a high-voltage traction
+# battery: mild/full/plug-in hybrid and battery-electric. Pure telemetry — the
+# IVI never commands the battery, so there is no command frame and no rules;
+# every signal is set and shown by the same control.
+#
+# Note the sign convention on PackCurrent: positive = discharging, negative =
+# charging. Drag it negative to simulate a charging session.
+
+ecu:
+  name: Battery
+
+defaults:
+  StateOfCharge: 78.0
+  StateOfHealth: 98.0
+  BatteryState: 1.0               # discharging
+  ContactorState: 2.0             # closed
+  HvActive: 1.0
+  IsolationFault: 0.0
+  PackVoltage: 396.0
+  PackCurrent: 25.0               # + = discharging
+  MinCellVoltage: 3.65
+  MaxCellVoltage: 3.71
+  BatteryTempMin: 22.0
+  BatteryTempMax: 27.0
+  BatteryTempAvg: 24.5
+  ThermalState: 0.0
+  RemainingEnergyKwh: 58.5
+  UsableEnergyKwh: 75.0
+  EstimatedRangeKm: 310.0
+  PowerLimitDischargeKw: 150.0
+  PowerLimitChargeKw: 90.0
+
+ui:
+  - { id: soc,      title: State of Charge %, widget: slider, min: 0, max: 100, step: 0.5, request: StateOfCharge, feedback: StateOfCharge }
+  - { id: socGauge, title: SoC,               widget: gauge,  min: 0, max: 100, feedback: StateOfCharge }
+  - { id: soh,      title: State of Health %, widget: slider, min: 0, max: 100, step: 1, request: StateOfHealth, feedback: StateOfHealth }
+  - { id: battState, title: Battery State,    widget: dropdown, request: BatteryState, feedback: BatteryState }
+  - { id: contactor, title: Contactor,        widget: dropdown, request: ContactorState, feedback: ContactorState }
+  - { id: hv,       title: HV Active,         widget: switch, request: HvActive, feedback: HvActive }
+  - { id: isoFault, title: Isolation Fault,   widget: switch, request: IsolationFault, feedback: IsolationFault }
+  - { id: packV,    title: Pack Voltage (V),  widget: slider, min: 0, max: 500, step: 1, request: PackVoltage, feedback: PackVoltage }
+  - { id: packA,    title: "Pack Current (A, + = discharge)", widget: slider, min: -200, max: 300, step: 1, request: PackCurrent, feedback: PackCurrent, snap_zero: true }
+  - { id: tempMax,  title: Pack Temp Max,     widget: slider, min: -30, max: 70, step: 1, request: BatteryTempMax, feedback: BatteryTempMax }
+  - { id: energy,   title: Remaining kWh,     widget: slider, min: 0, max: 120, step: 0.5, request: RemainingEnergyKwh, feedback: RemainingEnergyKwh }
+  - { id: range,    title: Battery Range (km), widget: slider, min: 0, max: 700, step: 5, request: EstimatedRangeKm, feedback: EstimatedRangeKm }
+  - { id: powerLim, title: Discharge Limit kW, widget: slider, min: 0, max: 255, step: 5, request: PowerLimitDischargeKw, feedback: PowerLimitDischargeKw }
+
+rules: []
+
+tx:
+
+  - { message: BatteryStatus,      period_ms: 1000, on_change: true }
+  - { message: BatteryElectrical,  period_ms: 1000, on_change: true }
+  - { message: BatteryTemperature, period_ms: 2000 }
+  - { message: BatteryEnergy,      period_ms: 2000, on_change: true }

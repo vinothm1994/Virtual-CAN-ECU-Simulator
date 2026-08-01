@@ -1,0 +1,41 @@
+# Virtual E-Motor / Inverter ECU. Present on anything with a traction or assist
+# motor: mild/full/plug-in hybrid and battery-electric. Read-only in the real
+# vehicle too — torque requests come from the vehicle control unit, never from
+# the IVI — so there is no command frame here.
+#
+# MotorPowerKw is signed and the sign is the interesting part: drag it negative
+# to simulate regenerative braking, which is what a cluster power bar shows on
+# the left of centre.
+
+ecu:
+  name: Motor
+
+defaults:
+  MotorSpeedRpm: 0.0
+  MotorTorqueNm: 0.0
+  MotorPowerKw: 0.0
+  MotorState: 1.0                 # ready
+  InverterState: 2.0              # active
+  MotorTempC: 35.0
+  InverterTempC: 40.0
+  DeratingActive: 0.0
+  DerateLevel: 0.0
+
+ui:
+  - { id: speed,    title: Motor Speed (rpm),  widget: slider, min: -12000, max: 16000, step: 100, request: MotorSpeedRpm, feedback: MotorSpeedRpm, snap_zero: true }
+  - { id: torque,   title: Motor Torque (Nm),  widget: slider, min: -400, max: 400, step: 5, request: MotorTorqueNm, feedback: MotorTorqueNm, snap_zero: true }
+  - { id: power,    title: "Motor Power (kW, - = regen)", widget: slider, min: -100, max: 200, step: 1, request: MotorPowerKw, feedback: MotorPowerKw, snap_zero: true }
+  - { id: powerGauge, title: Power kW,         widget: gauge,  min: -100, max: 200, feedback: MotorPowerKw }
+  - { id: motState, title: Motor State,        widget: dropdown, request: MotorState, feedback: MotorState }
+  - { id: invState, title: Inverter State,     widget: dropdown, request: InverterState, feedback: InverterState }
+  - { id: motTemp,  title: Motor Temp,         widget: slider, min: -20, max: 180, step: 1, request: MotorTempC, feedback: MotorTempC }
+  - { id: invTemp,  title: Inverter Temp,      widget: slider, min: -20, max: 180, step: 1, request: InverterTempC, feedback: InverterTempC }
+  - { id: derating, title: Derating Active,    widget: switch, request: DeratingActive, feedback: DeratingActive }
+  - { id: derateLvl, title: Derate Level,      widget: dropdown, request: DerateLevel, feedback: DerateLevel }
+
+rules: []
+
+tx:
+
+  - { message: MotorStatus,  period_ms: 1000, on_change: true }
+  - { message: MotorThermal, period_ms: 2000 }

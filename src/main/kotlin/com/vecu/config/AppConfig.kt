@@ -14,10 +14,17 @@ object AppConfig {
     val PROFILES = listOf(
         EcuProfile("HVAC", "config/hvac.dbc", "config/hvac.yml"),
         EcuProfile("Vehicle", "config/vehicle.dbc", "config/vehicle.yml"),
-        // Engine + fuel. Only a fuel-burning vehicle has this ECU, so it is a
-        // profile of its own rather than part of Vehicle: simulating a
-        // battery-electric vehicle means running Vehicle without it.
+        // One profile per ECU, so a vehicle is simulated by choosing which ECUs
+        // are on the bus rather than by editing any one file:
+        //   ICE  = Vehicle + Powertrain
+        //   HEV  = Vehicle + Powertrain + Battery + Motor
+        //   PHEV = Vehicle + Powertrain + Battery + Motor + Charging
+        //   BEV  = Vehicle + Battery + Motor + Charging
+        // Set PowertrainType in the Vehicle profile to match what you run.
         EcuProfile("Powertrain", "config/powertrain.dbc", "config/powertrain.yml"),
+        EcuProfile("Battery", "config/battery.dbc", "config/battery.yml"),
+        EcuProfile("Motor", "config/motor.dbc", "config/motor.yml"),
+        EcuProfile("Charging", "config/charging.dbc", "config/charging.yml"),
     )
 
     /** Index into [PROFILES] loaded at startup. */

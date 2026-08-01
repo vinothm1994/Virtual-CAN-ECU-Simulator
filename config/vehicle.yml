@@ -1,8 +1,13 @@
 # Virtual common Vehicle ECU: what is true of the vehicle as a whole, whatever
-# propels it (speed, gear, drive mode, steering), plus one command in (drive
-# mode). Engine and fuel are NOT here — they belong to the Powertrain profile,
-# which only a fuel-burning vehicle runs. For telemetry signals the control both
-# sets and shows them, so request == feedback == the signal.
+# propels it (speed, gear, drive mode, steering, ignition, odometer), plus one
+# command in (drive mode). Engine and fuel are NOT here — they belong to the
+# Powertrain profile, which only a fuel-burning vehicle runs. For telemetry
+# signals the control both sets and shows them, so request == feedback.
+#
+# VehicleConfiguration is what tells a listener what kind of vehicle this is.
+# Set PowertrainType here to match the profiles you actually run: a listener
+# that sees PowertrainType=BEV while the Powertrain ECU is transmitting has
+# every right to complain.
 
 ecu:
   name: Vehicle
@@ -14,14 +19,30 @@ defaults:
   GearPosition: 0.0
   DriveModeReq: 0.0
   DriveModeState: 0.0
+  DriveModeAvailableMask: 15.0    # modes 0..3 offered
   SteeringWheelAngle: 0.0
   SteeringCounter: 0.0
+  PowertrainType: 0.0             # 0=ICE 1=MHEV 2=HEV 3=PHEV 4=BEV
+  DrivenAxle: 0.0
+  VehicleVariant: 0.0
+  ConfigCounter: 0.0
+  ConfigCrc: 0.0
+  IgnitionState: 2.0              # on
+  ReadyToDrive: 1.0
+  KeyPresent: 1.0
+  Odometer: 12345.6
+  TripA: 123.4
+  TripB: 45.6
 
 ui:
   - { id: speed,   title: Vehicle Speed, widget: slider, min: 0, max: 240,  step: 1,  request: VehicleSpeed, feedback: VehicleSpeed }
   - { id: gear,    title: Gear,          widget: dropdown, request: GearPosition, feedback: GearPosition }
   - { id: mode,    title: Drive Mode,    widget: dropdown, request: DriveModeReq, feedback: DriveModeState }
   - { id: speedGauge, title: Speed,  widget: gauge, min: 0, max: 240,  feedback: VehicleSpeed }
+  - { id: ptType,  title: Powertrain Type, widget: dropdown, request: PowertrainType, feedback: PowertrainType }
+  - { id: ignition, title: Ignition,     widget: dropdown, request: IgnitionState, feedback: IgnitionState }
+  - { id: ready,   title: Ready To Drive, widget: switch, request: ReadyToDrive, feedback: ReadyToDrive }
+  - { id: odo,     title: Odometer (km), widget: slider, min: 0, max: 300000, step: 100, request: Odometer, feedback: Odometer }
   - { id: steering,        title: Steering Angle, widget: slider, min: -720, max: 720, step: 1, request: SteeringWheelAngle, feedback: SteeringWheelAngle, snap_zero: true }
   - { id: steeringGauge,   title: Steering Angle, widget: gauge,  min: -720, max: 720, feedback: SteeringWheelAngle }
   - { id: steeringCounter, title: Steering Counter (alive), widget: gauge, min: 0, max: 15, feedback: SteeringCounter }
@@ -29,11 +50,16 @@ ui:
 rules:
   # IVI drive-mode command -> reported drive-mode state.
   - { type: mirror, from: DriveModeReq, to: DriveModeState }
-  # Rolling alive counter for SteeringStatus; receivers detect loss via (rx != (prev+1) mod 16).
+  # Rolling alive counters; receivers detect loss via (rx != (prev+1) mod 16).
   - { type: counter, to: SteeringCounter, wrap: 16 }
+  - { type: counter, to: ConfigCounter, wrap: 16 }
 
 tx:
 
-  - { message: VehicleStatus,      period_ms: 1000, on_change: true }
-  - { message: TransmissionStatus, on_change: true }   # gear = event-triggered
-  - { message: SteeringStatus,     period_ms: 1000, on_change: true }    # dead-reckoning input; as fast as the sim tick allows
+  - { message: VehicleStatus,        period_ms: 1000, on_change: true }
+  - { message: VehicleConfiguration, period_ms: 1000 }   # cyclic: identity, not an event
+  - { message: TransmissionStatus,   on_change: true }   # gear = event-triggered
+  - { message: DriveModeStatus,      on_change: true }
+  - { message: IgnitionStatus,       period_ms: 1000, on_change: true }
+  - { message: OdometerStatus,       period_ms: 1000 }
+  - { message: SteeringStatus,       period_ms: 1000, on_change: true }    # dead-reckoning input; as fast as the sim tick allows

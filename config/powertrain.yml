@@ -12,12 +12,27 @@ ecu:
 defaults:
   EngineRPM: 800.0
   CoolantTemp: 90.0
+  EngineState: 2.0                # running
+  EngineTorquePct: 0.0
+  EngineLoadPct: 20.0
+  OilPressureLow: 0.0
   FuelLevelPct: 75.0
+  LowFuelWarn: 0.0
+  FuelRangeKm: 620.0
+  InstantConsumption: 7.5
+  AvgConsumption: 6.8
 
 ui:
   - { id: rpm,      title: Engine RPM,   widget: slider, min: 0, max: 8000, step: 50, request: EngineRPM,    feedback: EngineRPM }
   - { id: coolant,  title: Coolant Temp, widget: slider, min: -20, max: 130, step: 1, request: CoolantTemp,  feedback: CoolantTemp }
+  - { id: engState, title: Engine State, widget: dropdown, request: EngineState, feedback: EngineState }
+  - { id: torque,   title: Engine Torque %, widget: slider, min: -100, max: 100, step: 1, request: EngineTorquePct, feedback: EngineTorquePct, snap_zero: true }
+  - { id: load,     title: Engine Load %,   widget: slider, min: 0, max: 100, step: 1, request: EngineLoadPct, feedback: EngineLoadPct }
+  - { id: oil,      title: Oil Pressure Low, widget: switch, request: OilPressureLow, feedback: OilPressureLow }
   - { id: fuel,     title: Fuel Level,   widget: slider, min: 0, max: 100,  step: 1,  request: FuelLevelPct, feedback: FuelLevelPct }
+  - { id: lowFuel,  title: Low Fuel Warning, widget: switch, request: LowFuelWarn, feedback: LowFuelWarn }
+  - { id: range,    title: Fuel Range (km), widget: slider, min: 0, max: 1200, step: 10, request: FuelRangeKm, feedback: FuelRangeKm }
+  - { id: instCons, title: Instant l/100km, widget: slider, min: 0, max: 30, step: 0.1, request: InstantConsumption, feedback: InstantConsumption }
   - { id: rpmGauge, title: RPM,          widget: gauge,  min: 0, max: 8000, feedback: EngineRPM }
 
 rules: []

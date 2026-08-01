@@ -37,16 +37,32 @@ BU_: ECU IVI
 BO_ 512 EngineStatus: 8 ECU
  SG_ EngineRPM : 0|16@1+ (1,0) [0|65535] "rpm" IVI
  SG_ CoolantTemp : 16|16@1- (0.1,0) [-3276.8|3276.7] "degC" IVI
+ SG_ EngineState : 32|4@1+ (1,0) [0|15] "" IVI
+ SG_ OilPressureLow : 36|1@1+ (1,0) [0|1] "" IVI
+ SG_ EngineTorquePct : 40|8@1- (1,0) [-128|127] "%" IVI
+ SG_ EngineLoadPct : 48|8@1+ (1,0) [0|255] "%" IVI
 
 BO_ 513 FuelStatus: 8 ECU
  SG_ FuelLevelPct : 0|8@1+ (1,0) [0|255] "%" IVI
+ SG_ LowFuelWarn : 8|1@1+ (1,0) [0|1] "" IVI
+ SG_ FuelRangeKm : 16|16@1+ (1,0) [0|65535] "km" IVI
+ SG_ InstantConsumption : 32|16@1+ (0.1,0) [0|6553.5] "l/100km" IVI
+ SG_ AvgConsumption : 48|16@1+ (0.1,0) [0|6553.5] "l/100km" IVI
 
-CM_ "Powertrain (ICE) ECU: the engine controller. Only present on a vehicle that
-burns fuel (ICE, mild/full/plug-in hybrid); a battery-electric vehicle has no
-such ECU, which is why these signals are their own profile rather than part of
-the common Vehicle ECU. CAN ID range 0x200-0x27F.";
-CM_ BO_ 512 "Engine RPM and coolant temperature";
-CM_ BO_ 513 "Fuel tank status";
+CM_ "Powertrain (ICE) domain, owned by the engine ECU (EMS). Active only for
+powertrain types with the COMBUSTION capability: ICE, MHEV, HEV, PHEV. A BEV
+gateway never loads this file. CAN ID range 0x200-0x27F is reserved for this
+domain; keep every message inside it.";
+CM_ BO_ 512 "Engine RPM and coolant temperature. Moved here from vehicle.dbc
+0x101 (EngineStatus) unchanged: identical bit layout, scale and offset, new CAN
+ID only.";
+CM_ BO_ 513 "Fuel tank status. FuelLevelPct moved here from vehicle.dbc 0x104
+(BodyStatus.FuelLevel) unchanged apart from the name: fuel belongs to the
+powertrain domain, not the body ECU.";
 CM_ SG_ 512 EngineRPM "Engine speed";
 CM_ SG_ 512 CoolantTemp "Engine coolant temperature, 0.1 degC per bit, signed";
+CM_ SG_ 512 EngineState "0=off 1=cranking 2=running 3=stop-start idle 4=fault. Matters on a hybrid, where the engine being off does NOT mean the vehicle is off - the cluster must tell those apart.";
 CM_ SG_ 513 FuelLevelPct "Tank fuel level; operating range 0..100 %";
+CM_ SG_ 513 FuelRangeKm "Estimated remaining range on fuel alone";
+
+VAL_ 512 EngineState 0 "off" 1 "cranking" 2 "running" 3 "stop_start_idle" 4 "fault" ;

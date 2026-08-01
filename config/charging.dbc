@@ -1,0 +1,86 @@
+VERSION ""
+
+NS_ :
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: ECU IVI
+
+BO_ 864 ChargingStatus: 8 ECU
+ SG_ ChargingState : 0|4@1+ (1,0) [0|15] "" IVI
+ SG_ ChargeType : 4|2@1+ (1,0) [0|3] "" IVI
+ SG_ ChargeFault : 6|2@1+ (1,0) [0|3] "" IVI
+ SG_ ChargePowerKw : 8|16@1+ (0.1,0) [0|6553.5] "kW" IVI
+ SG_ ChargeCurrentA : 24|16@1+ (0.1,0) [0|6553.5] "A" IVI
+ SG_ ChargeVoltageV : 40|16@1+ (1,0) [0|65535] "V" IVI
+ SG_ ChargeLimitPct : 56|8@1+ (1,0) [0|255] "%" IVI
+
+BO_ 865 ChargingPort: 8 ECU
+ SG_ PortState : 0|2@1+ (1,0) [0|3] "" IVI
+ SG_ CableConnected : 2|1@1+ (1,0) [0|1] "" IVI
+ SG_ LatchState : 4|2@1+ (1,0) [0|3] "" IVI
+ SG_ ProximityState : 8|4@1+ (1,0) [0|15] "" IVI
+ SG_ PilotState : 12|4@1+ (1,0) [0|15] "" IVI
+ SG_ PortFault : 16|2@1+ (1,0) [0|3] "" IVI
+ SG_ TimeToFullMin : 24|16@1+ (1,0) [0|65535] "min" IVI
+
+BO_ 928 ChargingControl: 8 IVI
+ SG_ ChargeCmd : 0|2@1+ (1,0) [0|3] "" ECU
+ SG_ ChargeLimitReq : 8|8@1+ (1,0) [0|255] "%" ECU
+ SG_ CmdCounter : 16|4@1+ (1,0) [0|15] "" ECU
+
+CM_ "Charging: the on-board charger and the charge-port controller. Active only
+on a plug-in vehicle (PHEV, BEV) - a hybrid that cannot be plugged in has no
+charge port and never loads this file. CAN ID ranges: 0x360-0x37F status,
+0x3A0-0x3BF commands.
+
+ChargingControl 0x3A0 is a SHARED COMMAND FRAME: startCharging, stopCharging and
+setChargeLimit all pack into it. Encoding a single signal would zero the others,
+so setting a charge limit would silently issue a stop. The gateway therefore
+composes the whole frame from a model on every command (src/domain/charging/,
+via FrameComposer), exactly as it does for HVAC. CmdCounter is owned by the
+composer, not by the model.";
+CM_ BO_ 864 "Charging session state, power and the limit the charger is honouring";
+CM_ BO_ 865 "Charge port, cable, latch and control-pilot state";
+CM_ BO_ 928 "Charging command from the IVI (cluster TX path)";
+CM_ SG_ 864 ChargeLimitPct "Charge limit the charger is actually applying: the read-back of ChargeLimitReq, NOT the request. The HMI shows this so a rejected request is visible instead of silently appearing to have worked.";
+CM_ SG_ 865 PilotState "IEC 61851 control-pilot state A..F";
+CM_ SG_ 865 CableConnected "A cable is physically plugged in; independent of whether charging is running";
+CM_ SG_ 865 TimeToFullMin "Estimated minutes to the target state of charge";
+CM_ SG_ 928 ChargeCmd "0=none 1=start 2=stop. A momentary request; the charger answers on ChargingStatus.";
+CM_ SG_ 928 CmdCounter "Rolling alive counter 0..15, +1 per transmitted frame, wraps. Owned by the frame composer so a command cannot forget to advance it.";
+
+VAL_ 864 ChargingState 0 "idle" 1 "negotiating" 2 "charging" 3 "complete" 4 "suspended" 5 "scheduled" 6 "fault" ;
+VAL_ 864 ChargeType 0 "none" 1 "AC" 2 "DC" ;
+VAL_ 864 ChargeFault 0 "none" 1 "warning" 2 "error" ;
+VAL_ 865 PortState 0 "closed" 1 "open" 2 "fault" ;
+VAL_ 865 LatchState 0 "unlocked" 1 "locked" 2 "fault" ;
+VAL_ 928 ChargeCmd 0 "none" 1 "start" 2 "stop" ;

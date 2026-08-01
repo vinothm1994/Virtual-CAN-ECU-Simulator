@@ -1,0 +1,62 @@
+# Virtual Charging ECU: the on-board charger and charge-port controller. Present
+# only on a plug-in vehicle (PHEV, BEV) — a hybrid that cannot be plugged in has
+# no charge port, so do not run this profile alongside a Vehicle profile that
+# reports PowertrainType=HEV.
+#
+# This is the one EV profile that RECEIVES a command. ChargingControl 0x3A0
+# carries all three requests (start, stop, limit) in one frame, so a sender that
+# encodes a single signal will zero the others — the same trap HVAC has. Watch
+# for it here: if setting a charge limit makes ChargeCmd drop to 0, the sender is
+# encoding partial frames.
+#
+# ChargeLimitPct is mirrored from ChargeLimitReq, because it models the limit the
+# charger has ACCEPTED. To simulate a charger refusing a limit, delete that rule
+# and drive ChargeLimitPct by hand.
+
+ecu:
+  name: Charging
+
+defaults:
+  ChargingState: 0.0              # idle
+  ChargeType: 0.0                 # none
+  ChargeFault: 0.0
+  ChargePowerKw: 0.0
+  ChargeCurrentA: 0.0
+  ChargeVoltageV: 0.0
+  ChargeLimitPct: 100.0
+  ChargeLimitReq: 100.0
+  ChargeCmd: 0.0
+  CmdCounter: 0.0
+  PortState: 0.0                  # closed
+  CableConnected: 0.0
+  LatchState: 0.0
+  ProximityState: 0.0
+  PilotState: 0.0                 # IEC 61851 state A
+  PortFault: 0.0
+  TimeToFullMin: 0.0
+
+ui:
+  - { id: state,    title: Charging State,   widget: dropdown, request: ChargingState, feedback: ChargingState }
+  - { id: type,     title: Charge Type,      widget: dropdown, request: ChargeType, feedback: ChargeType }
+  - { id: cable,    title: Cable Connected,  widget: switch, request: CableConnected, feedback: CableConnected }
+  - { id: port,     title: Port State,       widget: dropdown, request: PortState, feedback: PortState }
+  - { id: latch,    title: Latch,            widget: dropdown, request: LatchState, feedback: LatchState }
+  - { id: powerKw,  title: Charge Power (kW), widget: slider, min: 0, max: 350, step: 1, request: ChargePowerKw, feedback: ChargePowerKw }
+  - { id: currentA, title: Charge Current (A), widget: slider, min: 0, max: 500, step: 1, request: ChargeCurrentA, feedback: ChargeCurrentA }
+  - { id: voltageV, title: Charge Voltage (V), widget: slider, min: 0, max: 1000, step: 5, request: ChargeVoltageV, feedback: ChargeVoltageV }
+  - { id: ttf,      title: Time To Full (min), widget: slider, min: 0, max: 600, step: 5, request: TimeToFullMin, feedback: TimeToFullMin }
+  - { id: fault,    title: Charge Fault,     widget: dropdown, request: ChargeFault, feedback: ChargeFault }
+  # Read-backs of what the IVI asked for. The command itself is inbound, so
+  # these show what arrived rather than letting you set it.
+  - { id: cmd,      title: "Last Command (in)", widget: gauge, min: 0, max: 2, feedback: ChargeCmd }
+  - { id: cmdCount, title: "Cmd Counter (in, alive)", widget: gauge, min: 0, max: 15, feedback: CmdCounter }
+  - { id: limit,    title: Charge Limit % (applied), widget: gauge, min: 0, max: 100, feedback: ChargeLimitPct }
+
+rules:
+  # The charger accepts the requested limit as-is.
+  - { type: mirror, from: ChargeLimitReq, to: ChargeLimitPct }
+
+tx:
+
+  - { message: ChargingStatus, period_ms: 1000, on_change: true }
+  - { message: ChargingPort,   period_ms: 1000, on_change: true }

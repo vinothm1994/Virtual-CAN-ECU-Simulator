@@ -85,6 +85,9 @@ flowchart LR
 | `config/hvac.dbc` + `hvac.yml` | HVAC ECU profile (modelled on the AOSP VHAL HVAC properties) |
 | `config/vehicle.dbc` + `vehicle.yml` | Common Vehicle ECU profile (speed, gear, drive mode, steering) |
 | `config/powertrain.dbc` + `powertrain.yml` | Powertrain (ICE) ECU profile (engine RPM, coolant, fuel) — absent on a battery-electric vehicle |
+| `config/battery.dbc` + `battery.yml` | HV battery / BMS profile (SoC, pack V/I, temps, energy) — any hybrid or EV |
+| `config/motor.dbc` + `motor.yml` | E-motor / inverter profile (speed, torque, signed power, thermals) — any hybrid or EV |
+| `config/charging.dbc` + `charging.yml` | On-board charger + charge port — plug-in vehicles only; receives ChargingControl |
 | `native/` | JNI bridge for dbcppp + SocketCAN/PCAN (CMake, OS-conditional) |
 | `native/prebuilt/` | vendored dbcppp: shared headers + per-platform lib (linux-x86_64, linux-aarch64, windows-x86_64) |
 | `src/main/kotlin/com/vecu/` | the Kotlin/Compose application |
