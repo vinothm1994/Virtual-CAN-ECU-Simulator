@@ -14,6 +14,10 @@ object AppConfig {
     val PROFILES = listOf(
         EcuProfile("HVAC", "config/hvac.dbc", "config/hvac.yml"),
         EcuProfile("Vehicle", "config/vehicle.dbc", "config/vehicle.yml"),
+        // Engine + fuel. Only a fuel-burning vehicle has this ECU, so it is a
+        // profile of its own rather than part of Vehicle: simulating a
+        // battery-electric vehicle means running Vehicle without it.
+        EcuProfile("Powertrain", "config/powertrain.dbc", "config/powertrain.yml"),
     )
 
     /** Index into [PROFILES] loaded at startup. */

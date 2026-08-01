@@ -1,0 +1,52 @@
+VERSION ""
+
+NS_ :
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: ECU IVI
+
+BO_ 512 EngineStatus: 8 ECU
+ SG_ EngineRPM : 0|16@1+ (1,0) [0|65535] "rpm" IVI
+ SG_ CoolantTemp : 16|16@1- (0.1,0) [-3276.8|3276.7] "degC" IVI
+
+BO_ 513 FuelStatus: 8 ECU
+ SG_ FuelLevelPct : 0|8@1+ (1,0) [0|255] "%" IVI
+
+CM_ "Powertrain (ICE) ECU: the engine controller. Only present on a vehicle that
+burns fuel (ICE, mild/full/plug-in hybrid); a battery-electric vehicle has no
+such ECU, which is why these signals are their own profile rather than part of
+the common Vehicle ECU. CAN ID range 0x200-0x27F.";
+CM_ BO_ 512 "Engine RPM and coolant temperature";
+CM_ BO_ 513 "Fuel tank status";
+CM_ SG_ 512 EngineRPM "Engine speed";
+CM_ SG_ 512 CoolantTemp "Engine coolant temperature, 0.1 degC per bit, signed";
+CM_ SG_ 513 FuelLevelPct "Tank fuel level; operating range 0..100 %";

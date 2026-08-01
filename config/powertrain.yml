@@ -1,0 +1,28 @@
+# Virtual Powertrain (ICE) ECU — the engine controller. Split out of the Vehicle
+# profile because engine and fuel exist only on a vehicle that burns fuel: an ICE
+# or a hybrid runs this profile alongside Vehicle, a battery-electric vehicle
+# runs Vehicle without it. Pure telemetry, no commands in, so for every signal
+# the control both sets and shows it (request == feedback).
+
+ecu:
+  name: Powertrain
+
+# CAN interface + bitrate are chosen in the app toolbar (shared by all ECUs).
+
+defaults:
+  EngineRPM: 800.0
+  CoolantTemp: 90.0
+  FuelLevelPct: 75.0
+
+ui:
+  - { id: rpm,      title: Engine RPM,   widget: slider, min: 0, max: 8000, step: 50, request: EngineRPM,    feedback: EngineRPM }
+  - { id: coolant,  title: Coolant Temp, widget: slider, min: -20, max: 130, step: 1, request: CoolantTemp,  feedback: CoolantTemp }
+  - { id: fuel,     title: Fuel Level,   widget: slider, min: 0, max: 100,  step: 1,  request: FuelLevelPct, feedback: FuelLevelPct }
+  - { id: rpmGauge, title: RPM,          widget: gauge,  min: 0, max: 8000, feedback: EngineRPM }
+
+rules: []
+
+tx:
+
+  - { message: EngineStatus, period_ms: 1000, on_change: true }
+  - { message: FuelStatus,   period_ms: 1000, on_change: true }
