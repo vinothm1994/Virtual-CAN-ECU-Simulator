@@ -30,8 +30,8 @@ class EcuInstance(
     private val isBusOpen: () -> Boolean,
     private val onTx: (EcuInstance, CanFrame, String, Map<String, Double>) -> Unit,
 ) {
-    val dbc: DbcService = DbcService().apply { load(profile.dbc) }
-    val config: SimConfig = SimConfig.load(profile.yaml)
+    val dbc: DbcService = DbcService().apply { load(AppConfig.resolvePath(profile.dbc)) }
+    val config: SimConfig = SimConfig.load(AppConfig.resolvePath(profile.yaml))
     val properties: List<Property> = PropertyManager.build(config.widgets, dbc.schema)
     val name: String get() = config.ecuName
     val messageCount: Int get() = dbc.schema.messages.size

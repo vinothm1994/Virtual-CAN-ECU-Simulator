@@ -1,5 +1,7 @@
 package com.vecu.config
 
+import java.io.File
+
 /**
  * Hardcoded MVP configuration. No file dialogs, no project management — the app
  * boots straight from these paths (see the master spec). Everything about *which*
@@ -42,14 +44,18 @@ object AppConfig {
     /** How many CAN monitor / log rows to retain in the UI. */
     const val MAX_LOG_ROWS = 300 * 10000
 
+    // Set by the compose plugin (both `run` and the packaged app) to the merged
+    // appResources/ tree (see build.gradle.kts' stageAppResources task).
+    private val resourcesDir: File? =
+        System.getProperty("compose.application.resources.dir")?.let(::File)
+
     /**
-     * Candidate locations for the JNI bridge (dbcppp + SocketCAN). The first
-     * that exists is loaded. `native/build` is where the Gradle `buildNative`
-     * task drops it during development.
+     * Resolves a [PROFILES] path (e.g. "config/hvac.dbc") against the packaged
+     * app's bundled resources when present, else returns it unchanged (the
+     * dev-mode fallback, relative to the working directory `./gradlew run` uses).
      */
-    val NATIVE_LIB_CANDIDATES = listOf(
-        "native/build/libvecunative.so",
-        "../native/build/libvecunative.so",
-        "libvecunative.so",
-    )
+    fun resolvePath(path: String): String {
+        val bundled = resourcesDir?.let { File(it, path) }
+        return if (bundled != null && bundled.exists()) bundled.absolutePath else path
+    }
 }

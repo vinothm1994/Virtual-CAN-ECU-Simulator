@@ -42,6 +42,11 @@ compose.desktop {
                 packageName = "vecu-sim"
                 appCategory = "Development"
             }
+            // Bundles native/deps + config so the packaged app is self-contained
+            // (no reliance on the process's working directory). Populated by
+            // stageAppResources below; read back via AppConfig.resolvePath and
+            // NativeLoader using the compose.application.resources.dir property.
+            appResourcesRootDir.set(layout.projectDirectory.dir("appResources"))
         }
     }
 }
@@ -68,6 +73,44 @@ val buildNative = tasks.register<Exec>("buildNative") {
 
 // run -> classes -> compileKotlin, so hooking compileKotlin also covers `run`.
 tasks.named("compileKotlin") { dependsOn(buildNative) }
+
+// Stages the freshly built native bridge (+ its runtime deps) and the config/
+// DBC+YAML files into appResources/, the tree that appResourcesRootDir copies
+// into the packaged app. A raw jpackage app image has no working directory
+// containing native/ or config/, so without this NativeLoader/AppConfig can't
+// find anything once installed — only `./gradlew run` (cwd = project root)
+// happened to work.
+val stageAppResources = tasks.register<Sync>("stageAppResources") {
+    dependsOn(buildNative)
+    val isWindows = System.getProperty("os.name")
+        .lowercase()
+        .contains("windows")
+    val hostArch = System.getProperty("os.arch").lowercase().let {
+        if (it.contains("aarch64") || it.contains("arm64")) "aarch64" else "x86_64"
+    }
+    into(layout.projectDirectory.dir("appResources"))
+    from("config") { into("common/config") }
+    if (isWindows) {
+        from("native/build") { include("vecunative.dll"); into("windows/native") }
+        from("native/prebuilt/windows-x86_64") {
+            include("libdbcppp.dll", "libc++.dll", "libunwind.dll")
+            into("windows/native")
+        }
+    } else {
+        from("native/build") { include("libvecunative.so"); into("linux/native") }
+        from("native/prebuilt/linux-$hostArch") { include("libdbcppp.so*"); into("linux/native") }
+    }
+}
+
+// Needed both for `run` (dev) and for packaging (installed app has no source
+// tree to fall back on). The compose plugin's own `prepareAppResources` task
+// reads appResourcesRootDir straight off disk, so it must run strictly after
+// ours writes into it (same directory — an implicit-dependency validation
+// error otherwise).
+tasks.matching {
+    it.name == "run" || it.name == "createDistributable" || it.name == "prepareAppResources" ||
+        it.name.startsWith("package")
+}.configureEach { dependsOn(stageAppResources) }
 
 // Headless end-to-end pipeline check (no CAN bus, no UI). `./gradlew selfTest`.
 tasks.register<JavaExec>("selfTest") {
