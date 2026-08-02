@@ -19,7 +19,7 @@ defaults:
   GearPosition: 0.0
   DriveModeReq: 0.0
   DriveModeState: 0.0
-  DriveModeAvailableMask: 15.0    # modes 0..3 offered
+  DriveModeAvailableMask: 63.0    # modes 0..5 offered (COMFORT..NIGHT)
   SteeringWheelAngle: 0.0
   SteeringCounter: 0.0
   PowertrainType: 0.0             # 0=ICE 1=MHEV 2=HEV 3=PHEV 4=BEV
