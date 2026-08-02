@@ -58,8 +58,13 @@ tx:
 
   - { message: VehicleStatus,        period_ms: 1000, on_change: true }
   - { message: VehicleConfiguration, period_ms: 1000 }   # cyclic: identity, not an event
-  - { message: TransmissionStatus,   on_change: true }   # gear = event-triggered
-  - { message: DriveModeStatus,      on_change: true }
+  # Gear and drive mode are event-driven, but they must ALSO be cyclic: a
+  # listener that starts after the simulator connected would otherwise never
+  # learn them until the driver next touches the control, and would show a stale
+  # value indefinitely. On-change alone is only safe when every listener is
+  # guaranteed to be present before the first change.
+  - { message: TransmissionStatus,   period_ms: 1000, on_change: true }
+  - { message: DriveModeStatus,      period_ms: 1000, on_change: true }
   - { message: IgnitionStatus,       period_ms: 1000, on_change: true }
   - { message: OdometerStatus,       period_ms: 1000 }
   - { message: SteeringStatus,       period_ms: 1000, on_change: true }    # dead-reckoning input; as fast as the sim tick allows
