@@ -21,6 +21,10 @@ defaults:
   FuelRangeKm: 620.0
   InstantConsumption: 7.5
   AvgConsumption: 6.8
+  # Fluid LEVELS, on the AAOS ladder: 0=critically_low 1=low 2=normal 3=high
+  # 4=error. Distinct from OilPressureLow above, which is the pump warning.
+  OilLevel: 2.0
+  CoolantLevel: 2.0
 
 ui:
   - { id: rpm,      title: Engine RPM,   widget: slider, min: 0, max: 8000, step: 50, request: EngineRPM,    feedback: EngineRPM }
@@ -33,6 +37,8 @@ ui:
   - { id: lowFuel,  title: Low Fuel Warning, widget: switch, request: LowFuelWarn, feedback: LowFuelWarn }
   - { id: range,    title: Fuel Range (km), widget: slider, min: 0, max: 1200, step: 10, request: FuelRangeKm, feedback: FuelRangeKm }
   - { id: instCons, title: Instant l/100km, widget: slider, min: 0, max: 30, step: 0.1, request: InstantConsumption, feedback: InstantConsumption }
+  - { id: oilLvl,   title: Oil Level,    widget: dropdown, request: OilLevel,     feedback: OilLevel }
+  - { id: cooLvl,   title: Coolant Level, widget: dropdown, request: CoolantLevel, feedback: CoolantLevel }
   - { id: rpmGauge, title: RPM,          widget: gauge,  min: 0, max: 8000, feedback: EngineRPM }
 
 rules: []
@@ -41,3 +47,5 @@ tx:
 
   - { message: EngineStatus, period_ms: 1000, on_change: true }
   - { message: FuelStatus,   period_ms: 1000, on_change: true }
+  # Levels move on the timescale of a service interval, not a drive.
+  - { message: EngineFluids, period_ms: 5000, on_change: true }

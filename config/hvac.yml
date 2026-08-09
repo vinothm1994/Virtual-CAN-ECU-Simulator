@@ -18,6 +18,10 @@ defaults:
   HvacFanDirectionReq: 1.0
   HvacFanDirection: 1.0
   HvacDisplayUnit: 48.0
+  # Rear cabin. Readings only - there is no rear climate control on this
+  # vehicle, which is exactly why the rear temperature is its own number.
+  HvacTempCurrentRearLeft: 22.0
+  HvacTempCurrentRearRight: 22.0
 
 # ---- UI widgets. request = control writes it; feedback = control reads it back.
 ui:
@@ -110,6 +114,12 @@ ui:
     max: 40
     feedback: HvacTempCurrentPassenger
 
+  # Rear cabin. Sliders, not gauges: with no rear climate control there is
+  # nothing to ramp them toward, so they are set by hand to whatever the back
+  # of the car is meant to be sitting at.
+  - { id: cabinRearL, title: Cabin Temp (Rear L), widget: slider, min: 0, max: 40, step: 0.5, request: HvacTempCurrentRearLeft,  feedback: HvacTempCurrentRearLeft }
+  - { id: cabinRearR, title: Cabin Temp (Rear R), widget: slider, min: 0, max: 40, step: 0.5, request: HvacTempCurrentRearRight, feedback: HvacTempCurrentRearRight }
+
   - id: fanRpm
     title: Actual Fan RPM
     widget: gauge
@@ -156,3 +166,4 @@ rules:
 tx:
   - { message: HvacStatus,       period_ms: 10000 , on_change: true }
   - { message: HvacTemperatures, on_change: true }
+  - { message: HvacTemperaturesRear, period_ms: 5000, on_change: true }

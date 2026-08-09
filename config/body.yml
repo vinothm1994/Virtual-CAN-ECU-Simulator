@@ -1,0 +1,93 @@
+# Virtual Body ECU — the body control module. Doors, glass, exterior lamps, tire
+# pressures and the telltale bitfield. Always on the bus: every vehicle has a
+# body whatever propels it, so this profile carries no powertrain assumptions.
+#
+# The command messages in body.dbc (BodyDoorLockCmd, BodyWindowCmd, ...) are the
+# IVI -> ECU direction and are received, not sent, so nothing here transmits
+# them. What this profile publishes is the ECU's own status.
+
+ecu:
+  name: Body
+
+defaults:
+  # Locks and openings — everything shut and unlocked at rest.
+  DoorLockDriver: 0.0
+  DoorLockPassenger: 0.0
+  DoorOpenDriver: 0.0
+  DoorOpenPassenger: 0.0
+  DoorOpenRearLeft: 0.0
+  DoorOpenRearRight: 0.0
+  HoodOpen: 0.0
+  TrunkOpen: 0.0
+  # Glass, 0 = closed .. 100 = fully open.
+  WindowPosDriver: 0.0
+  WindowPosPassenger: 0.0
+  WindowPosRearLeft: 0.0
+  WindowPosRearRight: 0.0
+  SunroofPos: 0.0
+  # Lamps. HeadlightState is the SWITCH (2 = auto); HeadlightActive is whether
+  # the lamps are actually lit, which on auto is a separate question.
+  HeadlightState: 2.0
+  HeadlightActive: 0.0
+  TailLightActive: 0.0
+  HazardState: 0.0
+  WiperState: 0.0
+  # Tire pressures, kPa. 220 is a typical cold road-car front.
+  TirePressureFrontLeft: 220.0
+  TirePressureFrontRight: 220.0
+  TirePressureRearLeft: 220.0
+  TirePressureRearRight: 220.0
+  Telltales: 0.0
+
+ui:
+  # --- Openings. Switches, because a courtesy switch is a shut/ajar sensor and
+  # reports nothing in between.
+  - { id: doorFL,   title: Door FL Open,  widget: switch, request: DoorOpenDriver,    feedback: DoorOpenDriver }
+  - { id: doorFR,   title: Door FR Open,  widget: switch, request: DoorOpenPassenger, feedback: DoorOpenPassenger }
+  - { id: doorRL,   title: Door RL Open,  widget: switch, request: DoorOpenRearLeft,  feedback: DoorOpenRearLeft }
+  - { id: doorRR,   title: Door RR Open,  widget: switch, request: DoorOpenRearRight, feedback: DoorOpenRearRight }
+  - { id: hood,     title: Hood Open,     widget: switch, request: HoodOpen,          feedback: HoodOpen }
+  - { id: trunk,    title: Trunk Open,    widget: switch, request: TrunkOpen,         feedback: TrunkOpen }
+
+  # --- Locks (front only; the DBC has no rear lock signals).
+  - { id: lockFL,   title: Door FL Locked, widget: switch, request: DoorLockDriver,    feedback: DoorLockDriver }
+  - { id: lockFR,   title: Door FR Locked, widget: switch, request: DoorLockPassenger, feedback: DoorLockPassenger }
+
+  # --- Glass, as a percentage open.
+  - { id: winFL,    title: Window FL %,   widget: slider, min: 0, max: 100, step: 1, request: WindowPosDriver,    feedback: WindowPosDriver }
+  - { id: winFR,    title: Window FR %,   widget: slider, min: 0, max: 100, step: 1, request: WindowPosPassenger, feedback: WindowPosPassenger }
+  - { id: winRL,    title: Window RL %,   widget: slider, min: 0, max: 100, step: 1, request: WindowPosRearLeft,  feedback: WindowPosRearLeft }
+  - { id: winRR,    title: Window RR %,   widget: slider, min: 0, max: 100, step: 1, request: WindowPosRearRight, feedback: WindowPosRearRight }
+  - { id: sunroof,  title: Sunroof %,     widget: slider, min: 0, max: 100, step: 1, request: SunroofPos,         feedback: SunroofPos }
+
+  # --- Lamps. Both headlight signals are exposed: switching the switch to `on`
+  # is what drives HeadlightActive (see rules), but `auto` leaves the lamps to
+  # the ECU, which is exactly the case a consumer must not get wrong.
+  - { id: hlSwitch, title: Headlight Switch, widget: dropdown, request: HeadlightState,  feedback: HeadlightState }
+  - { id: hlActive, title: Headlights Lit,   widget: switch,   request: HeadlightActive, feedback: HeadlightActive }
+  - { id: tailLamp, title: Tail Lamps Lit,   widget: switch,   request: TailLightActive, feedback: TailLightActive }
+  - { id: hazard,   title: Hazard,           widget: switch,   request: HazardState,     feedback: HazardState }
+  - { id: wiper,    title: Wipers,           widget: dropdown, request: WiperState,      feedback: WiperState }
+
+  # --- Tire pressures. Range spans a flat tyre to an over-inflated one so the
+  # low-pressure warning can actually be exercised.
+  - { id: tyreFL,   title: Tyre FL (kPa), widget: slider, min: 0, max: 400, step: 5, request: TirePressureFrontLeft,  feedback: TirePressureFrontLeft }
+  - { id: tyreFR,   title: Tyre FR (kPa), widget: slider, min: 0, max: 400, step: 5, request: TirePressureFrontRight, feedback: TirePressureFrontRight }
+  - { id: tyreRL,   title: Tyre RL (kPa), widget: slider, min: 0, max: 400, step: 5, request: TirePressureRearLeft,   feedback: TirePressureRearLeft }
+  - { id: tyreRR,   title: Tyre RR (kPa), widget: slider, min: 0, max: 400, step: 5, request: TirePressureRearRight,  feedback: TirePressureRearRight }
+
+rules:
+  # Tail lamps follow the headlights: on a real car they are the same stalk.
+  # Leaving them independent would let the bench produce a state no vehicle can
+  # be in, and a consumer tested against it would be tested against fiction.
+  - { type: mirror, from: HeadlightActive, to: TailLightActive }
+
+tx:
+  - { message: BodyState,        period_ms: 1000, on_change: true }
+  - { message: BodyOpenings,     period_ms: 1000, on_change: true }
+  - { message: BodyWindowState,  period_ms: 1000, on_change: true }
+  - { message: BodyLightState,   period_ms: 1000, on_change: true }
+  # Tyres change slowly and are read slowly at the other end (1 kPa deadband,
+  # 1 s floor in the gateway's signal map), so a fast cycle would be waste.
+  - { message: TirePressure,     period_ms: 5000, on_change: true }
+  - { message: TelltaleStatus,   period_ms: 1000, on_change: true }

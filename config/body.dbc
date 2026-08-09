@@ -1,0 +1,130 @@
+VERSION ""
+
+NS_ :
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: ECU IVI
+
+BO_ 1024 BodyDoorLockCmd: 8 IVI
+ SG_ DoorLockReqId : 0|8@1+ (1,0) [0|255] "" ECU
+ SG_ DoorLockReqState : 8|8@1+ (1,0) [0|255] "" ECU
+
+BO_ 1025 BodyHeadlightCmd: 8 IVI
+ SG_ HeadlightReq : 0|8@1+ (1,0) [0|255] "" ECU
+
+BO_ 1026 BodyHazardCmd: 8 IVI
+ SG_ HazardReq : 0|8@1+ (1,0) [0|255] "" ECU
+
+BO_ 1027 BodyWiperCmd: 8 IVI
+ SG_ WiperReq : 0|8@1+ (1,0) [0|255] "" ECU
+
+BO_ 1028 BodyWindowCmd: 8 IVI
+ SG_ WindowReqId : 0|8@1+ (1,0) [0|255] "" ECU
+ SG_ WindowReqPos : 8|8@1+ (1,0) [0|255] "" ECU
+
+BO_ 1041 TelltaleStatus: 8 ECU
+ SG_ Telltales : 0|32@1+ (1,0) [0|4294967295] "" IVI
+
+BO_ 1040 BodyState: 8 ECU
+ SG_ DoorLockDriver : 0|1@1+ (1,0) [0|1] "" IVI
+ SG_ DoorLockPassenger : 1|1@1+ (1,0) [0|1] "" IVI
+ SG_ HazardState : 2|1@1+ (1,0) [0|1] "" IVI
+ SG_ HeadlightState : 8|8@1+ (1,0) [0|255] "" IVI
+ SG_ WiperState : 16|8@1+ (1,0) [0|255] "" IVI
+ SG_ WindowPosDriver : 24|8@1+ (1,0) [0|255] "" IVI
+ SG_ WindowPosPassenger : 32|8@1+ (1,0) [0|255] "" IVI
+
+BO_ 1042 BodyOpenings: 8 ECU
+ SG_ DoorOpenDriver : 0|1@1+ (1,0) [0|1] "" IVI
+ SG_ DoorOpenPassenger : 1|1@1+ (1,0) [0|1] "" IVI
+ SG_ DoorOpenRearLeft : 2|1@1+ (1,0) [0|1] "" IVI
+ SG_ DoorOpenRearRight : 3|1@1+ (1,0) [0|1] "" IVI
+ SG_ HoodOpen : 4|1@1+ (1,0) [0|1] "" IVI
+ SG_ TrunkOpen : 5|1@1+ (1,0) [0|1] "" IVI
+
+BO_ 1043 BodyWindowState: 8 ECU
+ SG_ WindowPosRearLeft : 0|8@1+ (1,0) [0|255] "" IVI
+ SG_ WindowPosRearRight : 8|8@1+ (1,0) [0|255] "" IVI
+ SG_ SunroofPos : 16|8@1+ (1,0) [0|255] "" IVI
+
+BO_ 1044 BodyLightState: 8 ECU
+ SG_ HeadlightActive : 0|8@1+ (1,0) [0|255] "" IVI
+ SG_ TailLightActive : 8|8@1+ (1,0) [0|255] "" IVI
+
+BO_ 1045 TirePressure: 8 ECU
+ SG_ TirePressureFrontLeft : 0|16@1+ (0.1,0) [0|6553.5] "kPa" IVI
+ SG_ TirePressureFrontRight : 16|16@1+ (0.1,0) [0|6553.5] "kPa" IVI
+ SG_ TirePressureRearLeft : 32|16@1+ (0.1,0) [0|6553.5] "kPa" IVI
+ SG_ TirePressureRearRight : 48|16@1+ (0.1,0) [0|6553.5] "kPa" IVI
+
+CM_ "Body-control commands from the IVI (cluster TX path). One message per
+command so a command never disturbs another's signals. Maps to writable AAOS
+VehicleProperties (DOOR_LOCK, HEADLIGHTS_SWITCH, HAZARD_LIGHTS_SWITCH,
+WINDSHIELD_WIPERS_SWITCH, WINDOW_POS).";
+CM_ BO_ 1024 "Door lock command: which door + lock state";
+CM_ BO_ 1025 "Exterior headlight switch command";
+CM_ BO_ 1026 "Hazard-lights command";
+CM_ BO_ 1027 "Windshield-wiper switch command";
+CM_ BO_ 1028 "Window position command: which window + target position %";
+CM_ SG_ 1024 DoorLockReqId "Door index: 0=front-left 1=front-right 2=rear-left 3=rear-right";
+CM_ SG_ 1024 DoorLockReqState "0=unlock 1=lock";
+CM_ SG_ 1028 WindowReqId "Window index (same order as doors)";
+CM_ SG_ 1028 WindowReqPos "Target position, 0=closed .. 100=fully open (%)";
+
+CM_ BO_ 1041 "Telltale / warning-lamp bitfield, as reported by the body ECU. Moved from 0x103 to 0x411 so it sits inside the body domain range; the common-vehicle domain owns 0x100-0x13F exclusively. Only the CAN ID changed - the Franca telltales field is untouched.";
+CM_ BO_ 1040 "Body status/feedback from ECU: door lock, window position, lights, wiper (driver+passenger front)";
+CM_ SG_ 1040 DoorLockDriver "0=unlocked 1=locked";
+CM_ SG_ 1040 WindowPosDriver "Actual position, 0=closed .. 100=open (%)";
+CM_ SG_ 1040 HeadlightState "Current headlight mode (same enum as HeadlightReq)";
+CM_ SG_ 1040 WiperState "Current wiper mode (same enum as WiperReq)";
+CM_ BO_ 1042 "Which openings are ajar. Separate from BodyState because lock state and open state are different questions - a door can be unlocked and shut, or locked and ajar, and the cluster has to say which.";
+CM_ BO_ 1043 "Rear window and sunroof position. BodyState 0x410 was already full at 8 bytes, so the rear pair lives here rather than displacing a front one.";
+CM_ BO_ 1044 "What the lamps are actually doing, as opposed to what the switch was set to. BodyState.HeadlightState is the switch position; on auto it says nothing about whether the lamps are lit.";
+CM_ BO_ 1045 "Tire pressures, one per wheel. 0.1 kPa over 16 bits covers every road vehicle with room to spare.";
+CM_ SG_ 1043 SunroofPos "Actual position, 0=closed .. 100=open (%)";
+VAL_ 1024 DoorLockReqState 0 "unlock" 1 "lock" ;
+VAL_ 1025 HeadlightReq 0 "off" 1 "on" 2 "auto" 3 "high_beam" ;
+VAL_ 1026 HazardReq 0 "off" 1 "on" ;
+VAL_ 1027 WiperReq 0 "off" 1 "intermittent" 2 "low" 3 "high" 4 "auto" ;
+VAL_ 1040 DoorLockDriver 0 "unlocked" 1 "locked" ;
+VAL_ 1040 DoorLockPassenger 0 "unlocked" 1 "locked" ;
+VAL_ 1040 HazardState 0 "off" 1 "on" ;
+VAL_ 1040 HeadlightState 0 "off" 1 "on" 2 "auto" 3 "high_beam" ;
+VAL_ 1040 WiperState 0 "off" 1 "intermittent" 2 "low" 3 "high" 4 "auto" ;
+VAL_ 1042 DoorOpenDriver 0 "shut" 1 "ajar" ;
+VAL_ 1042 DoorOpenPassenger 0 "shut" 1 "ajar" ;
+VAL_ 1042 DoorOpenRearLeft 0 "shut" 1 "ajar" ;
+VAL_ 1042 DoorOpenRearRight 0 "shut" 1 "ajar" ;
+VAL_ 1042 HoodOpen 0 "shut" 1 "ajar" ;
+VAL_ 1042 TrunkOpen 0 "shut" 1 "ajar" ;
+VAL_ 1044 HeadlightActive 0 "off" 1 "on" 2 "daytime_running" ;
+VAL_ 1044 TailLightActive 0 "off" 1 "on" ;

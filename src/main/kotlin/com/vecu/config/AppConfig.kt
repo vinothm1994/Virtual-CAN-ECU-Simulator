@@ -26,6 +26,9 @@ object AppConfig {
         EcuProfile("Battery", "config/battery.dbc", "config/battery.yml"),
         EcuProfile("Motor", "config/motor.dbc", "config/motor.yml"),
         EcuProfile("Charging", "config/charging.dbc", "config/charging.yml"),
+        // Body and HVAC are on every vehicle whatever propels it, so unlike the
+        // five above they are not part of the powertrain arithmetic.
+        EcuProfile("Body", "config/body.dbc", "config/body.yml"),
         EcuProfile("HVAC", "config/hvac.dbc", "config/hvac.yml"),
     )
 

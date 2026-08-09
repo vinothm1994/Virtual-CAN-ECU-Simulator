@@ -77,6 +77,10 @@ BO_ 1297 HvacTempControl: 8 IVI
  SG_ HvacSeatTempPassengerReq : 40|8@1- (1,0) [-128|127] "" ECU
  SG_ HvacSteeringWheelHeatReq : 48|8@1- (1,0) [-128|127] "" ECU
 
+BO_ 1282 HvacTemperaturesRear: 8 ECU
+ SG_ HvacTempCurrentRearLeft : 0|16@1- (0.1,0) [-3276.8|3276.7] "degC" IVI
+ SG_ HvacTempCurrentRearRight : 16|16@1- (0.1,0) [-3276.8|3276.7] "degC" IVI
+
 CM_ "HVAC CAN database modeled on AOSP VHAL types.hal HVAC_* VehicleProperty set (0x0500-0x0510). Dual-zone front (driver=ROW_1_LEFT, passenger=ROW_1_RIGHT). ECU = climate controller, IVI = Android Automotive head unit.";
 CM_ BO_ 1280 "HVAC status/feedback from climate ECU (mirrors HVAC_* READ properties)";
 CM_ BO_ 1281 "HVAC current + setpoint temperatures (HVAC_TEMPERATURE_CURRENT / HVAC_TEMPERATURE_SET)";
@@ -101,6 +105,7 @@ CM_ SG_ 1281 HvacTempSetDriver "HVAC_TEMPERATURE_SET (0x0503) driver zone feedba
 CM_ SG_ 1297 HvacSeatTempDriverReq "HVAC_SEAT_TEMPERATURE (0x050B) driver: <0 cool, >0 heat; operating range -3..3";
 CM_ SG_ 1297 HvacSteeringWheelHeatReq "HVAC_STEERING_WHEEL_HEAT (0x050D): <0 cool, >0 heat; operating range -3..3";
 
+CM_ BO_ 1282 "Rear cabin temperatures. HvacTemperatures 0x501 was already full at 8 bytes with the front pair and their setpoints, so the rear readings live here.";
 VAL_ 1280 HvacFanDirection 0 "unknown" 1 "face" 2 "floor" 3 "face_and_floor" 4 "defrost" 6 "defrost_and_floor" ;
 VAL_ 1296 HvacFanDirectionReq 0 "unknown" 1 "face" 2 "floor" 3 "face_and_floor" 4 "defrost" 6 "defrost_and_floor" ;
 VAL_ 1280 HvacDisplayUnit 48 "celsius" 49 "fahrenheit" ;

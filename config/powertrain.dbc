@@ -49,6 +49,10 @@ BO_ 513 FuelStatus: 8 ECU
  SG_ InstantConsumption : 32|16@1+ (0.1,0) [0|6553.5] "l/100km" IVI
  SG_ AvgConsumption : 48|16@1+ (0.1,0) [0|6553.5] "l/100km" IVI
 
+BO_ 514 EngineFluids: 8 ECU
+ SG_ OilLevel : 0|8@1+ (1,0) [0|255] "" IVI
+ SG_ CoolantLevel : 8|8@1+ (1,0) [0|255] "" IVI
+
 CM_ "Powertrain (ICE) domain, owned by the engine ECU (EMS). Active only for
 powertrain types with the COMBUSTION capability: ICE, MHEV, HEV, PHEV. A BEV
 gateway never loads this file. CAN ID range 0x200-0x27F is reserved for this
@@ -65,4 +69,9 @@ CM_ SG_ 512 EngineState "0=off 1=cranking 2=running 3=stop-start idle 4=fault. M
 CM_ SG_ 513 FuelLevelPct "Tank fuel level; operating range 0..100 %";
 CM_ SG_ 513 FuelRangeKm "Estimated remaining range on fuel alone";
 
+CM_ BO_ 514 "Engine fluid levels. Level, not the pressure switch on EngineStatus: the pump failing to make pressure is a different fault from the sump being low, and the driver has to be told which one happened.";
+CM_ SG_ 514 OilLevel "Discrete level, matching the AAOS VehicleOilLevel ladder exactly so nothing has to remap it";
+CM_ SG_ 514 CoolantLevel "Discrete level, same ladder as OilLevel";
 VAL_ 512 EngineState 0 "off" 1 "cranking" 2 "running" 3 "stop_start_idle" 4 "fault" ;
+VAL_ 514 OilLevel 0 "critically_low" 1 "low" 2 "normal" 3 "high" 4 "error" ;
+VAL_ 514 CoolantLevel 0 "critically_low" 1 "low" 2 "normal" 3 "high" 4 "error" ;
