@@ -1,0 +1,43 @@
+# Virtual Steering ECU — the EPS (electric power steering) controller. Promoted
+# out of the Vehicle profile when the gateway gave steering its own domain and
+# service: every vehicle steers whatever propels it, so this runs alongside
+# Vehicle on all five powertrain types.
+#
+# The CAN ID did not move (0x120), so this split is invisible on the wire.
+
+ecu:
+  name: Steering
+
+defaults:
+  SteeringWheelAngle: 0.0
+  SteeringCounter: 0.0
+  # Starts INVALID. A real EPS has not found absolute centre until the wheel has
+  # been turned past its index mark after a power cycle, and a dead-reckoning
+  # consumer that integrates the angle before then carries a bogus offset for
+  # the whole trip. Defaulting to 1 here would hide that a consumer ignores it.
+  SteeringAngleValid: 0.0
+  SteeringWheelTorque: 0.0
+  SteeringRateDps: 0.0
+  EpsMode: 1.0                    # normal
+  EpsFault: 0.0
+
+ui:
+  - { id: angle,      title: Steering Angle, widget: slider, min: -720, max: 720, step: 1, request: SteeringWheelAngle, feedback: SteeringWheelAngle, snap_zero: true }
+  - { id: angleGauge, title: Steering Angle, widget: gauge,  min: -720, max: 720, feedback: SteeringWheelAngle }
+  - { id: valid,      title: Angle Valid,    widget: switch, request: SteeringAngleValid, feedback: SteeringAngleValid }
+  - { id: torque,     title: Driver Torque (Nm), widget: slider, min: -10, max: 10, step: 0.1, request: SteeringWheelTorque, feedback: SteeringWheelTorque, snap_zero: true }
+  - { id: rate,       title: Steering Rate (deg/s), widget: slider, min: -1000, max: 1000, step: 10, request: SteeringRateDps, feedback: SteeringRateDps, snap_zero: true }
+  - { id: epsMode,    title: EPS Mode,       widget: dropdown, request: EpsMode,  feedback: EpsMode }
+  - { id: epsFault,   title: EPS Fault,      widget: switch,   request: EpsFault, feedback: EpsFault }
+  - { id: counter,    title: Steering Counter (alive), widget: gauge, min: 0, max: 15, feedback: SteeringCounter }
+
+rules:
+  # Rolling alive counter; receivers detect loss via (rx != (prev+1) mod 16).
+  # Advances once per actual transmit, not per engine tick.
+  - { type: counter, to: SteeringCounter, wrap: 16 }
+
+tx:
+  # Dead-reckoning input, so as fast as the sim tick allows. Cyclic as well as
+  # on-change: a listener that starts late must not wait for the wheel to move
+  # before it learns the angle.
+  - { message: SteeringStatus, period_ms: 1000, on_change: true }

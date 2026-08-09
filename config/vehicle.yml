@@ -20,8 +20,6 @@ defaults:
   DriveModeReq: 0.0
   DriveModeState: 0.0
   DriveModeAvailableMask: 63.0    # modes 0..5 offered (COMFORT..NIGHT)
-  SteeringWheelAngle: 0.0
-  SteeringCounter: 0.0
   PowertrainType: 0.0             # 0=ICE 1=MHEV 2=HEV 3=PHEV 4=BEV
   DrivenAxle: 0.0
   VehicleVariant: 0.0
@@ -43,15 +41,11 @@ ui:
   - { id: ignition, title: Ignition,     widget: dropdown, request: IgnitionState, feedback: IgnitionState }
   - { id: ready,   title: Ready To Drive, widget: switch, request: ReadyToDrive, feedback: ReadyToDrive }
   - { id: odo,     title: Odometer (km), widget: slider, min: 0, max: 300000, step: 100, request: Odometer, feedback: Odometer }
-  - { id: steering,        title: Steering Angle, widget: slider, min: -720, max: 720, step: 1, request: SteeringWheelAngle, feedback: SteeringWheelAngle, snap_zero: true }
-  - { id: steeringGauge,   title: Steering Angle, widget: gauge,  min: -720, max: 720, feedback: SteeringWheelAngle }
-  - { id: steeringCounter, title: Steering Counter (alive), widget: gauge, min: 0, max: 15, feedback: SteeringCounter }
 
 rules:
   # IVI drive-mode command -> reported drive-mode state.
   - { type: mirror, from: DriveModeReq, to: DriveModeState }
-  # Rolling alive counters; receivers detect loss via (rx != (prev+1) mod 16).
-  - { type: counter, to: SteeringCounter, wrap: 16 }
+  # Rolling alive counter; receivers detect loss via (rx != (prev+1) mod 16).
   - { type: counter, to: ConfigCounter, wrap: 16 }
 
 tx:
@@ -67,4 +61,3 @@ tx:
   - { message: DriveModeStatus,      period_ms: 1000, on_change: true }
   - { message: IgnitionStatus,       period_ms: 1000, on_change: true }
   - { message: OdometerStatus,       period_ms: 1000 }
-  - { message: SteeringStatus,       period_ms: 1000, on_change: true }    # dead-reckoning input; as fast as the sim tick allows

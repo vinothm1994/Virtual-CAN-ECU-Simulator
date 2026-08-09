@@ -111,11 +111,13 @@ fun main() {
 
     dbc.close()
 
-    // --- Vehicle profile: rolling alive-counter rule (SteeringCounter). ---
+    // --- Steering profile: rolling alive-counter rule (SteeringCounter). ---
     // Advances once per actual transmit of its message, NOT per engine tick —
     // ticking alone must never move it (that was the bug: it used to jump by
     // (period_ms / tick_ms) per frame instead of by exactly 1).
-    val vehicle = AppConfig.PROFILES.first { it.name == "Vehicle" }
+    // Lives in the Steering profile since the gateway gave steering its own
+    // domain; the CAN ID (0x120) and the frame layout did not change.
+    val vehicle = AppConfig.PROFILES.first { it.name == "Steering" }
     val vehDbc = DbcService().apply { load(vehicle.dbc) }
     val vehConfig = SimConfig.load(vehicle.yaml)
     val vehEcu = VirtualEcu(vehDbc.schema, RuleEngine(vehConfig.rules), vehConfig.defaults)
