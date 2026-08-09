@@ -14,7 +14,6 @@ object AppConfig {
      * by adding a profile here — no code change. Selectable from the toolbar.
      */
     val PROFILES = listOf(
-        EcuProfile("HVAC", "config/hvac.dbc", "config/hvac.yml"),
         EcuProfile("Vehicle", "config/vehicle.dbc", "config/vehicle.yml"),
         // One profile per ECU, so a vehicle is simulated by choosing which ECUs
         // are on the bus rather than by editing any one file:
@@ -27,6 +26,7 @@ object AppConfig {
         EcuProfile("Battery", "config/battery.dbc", "config/battery.yml"),
         EcuProfile("Motor", "config/motor.dbc", "config/motor.yml"),
         EcuProfile("Charging", "config/charging.dbc", "config/charging.yml"),
+        EcuProfile("HVAC", "config/hvac.dbc", "config/hvac.yml"),
     )
 
     /** Index into [PROFILES] loaded at startup. */
