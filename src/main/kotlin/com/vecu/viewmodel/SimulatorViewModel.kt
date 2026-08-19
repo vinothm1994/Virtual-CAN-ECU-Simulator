@@ -5,6 +5,7 @@ import com.vecu.can.CanFrame
 import com.vecu.can.Pcan
 import com.vecu.can.PcanDriver
 import com.vecu.can.SocketCanDriver
+import com.vecu.can.TcpCanDriver
 import com.vecu.config.AppConfig
 import com.vecu.config.EcuProfile
 import com.vecu.core.ecu.EcuInstance
@@ -65,6 +66,10 @@ class SimulatorViewModel {
 
     // Bus selection, chosen in the UI (shared by all ECUs). Windows has no "vcan0"
     // (that's Linux SocketCAN-only), so default to the first real PCAN channel there.
+    // On Windows the first offered bus is now the emulator's TCP bench rather
+    // than PCAN_USBBUS1: PCAN needs a physical dongle, so defaulting to it made
+    // a fresh Windows install fail on Connect. A PCAN channel is still one
+    // dropdown entry away for anyone with the hardware.
     private val _canInterface = MutableStateFlow(
         if (isWindows()) availableInterfaces().first() else AppConfig.CAN_INTERFACE,
     )
@@ -82,6 +87,16 @@ class SimulatorViewModel {
     val bitrateDisplay: StateFlow<String> = _bitrateDisplay
 
     private var stateCollectJob: Job? = null
+
+    /** Polls the driver's [CanDriver.name] while connected.
+     *
+     *  Most drivers have a static name, but a listening TCP bus has a third
+     *  state the UI never had to model: open, but with no peer yet. Its name
+     *  therefore changes from "(waiting)" to "(connected)" when the bridge in
+     *  the emulator dials in, which can be long after Connect was pressed --
+     *  the emulator usually boots after this app. Snapshotting the name at
+     *  connect() froze the label on "(waiting)" even while frames were flowing. */
+    private var driverNameJob: Job? = null
 
     init {
         // One instance per profile; they transmit via the shared driver
@@ -119,6 +134,9 @@ class SimulatorViewModel {
         val f = java.io.File("/sys/class/net/$iface/can_bittiming/bitrate")
         val bps = f.takeIf { it.exists() }?.runCatching { readText().trim().toInt() }?.getOrNull()
         return when {
+            // A TCP link has no wire speed; the frame rate comes from the ECU TX
+            // schedulers. Showing a bitrate here would invent a number.
+            iface.startsWith("tcp:") -> "n/a (TCP)"
             bps != null -> if (bps % 1000 == 0) "${bps / 1000} kbit/s" else "$bps bit/s"
             iface.startsWith("vcan") -> "virtual"
             else -> "—" // real CAN not up (bitrate configured at `ip link ... up`)
@@ -132,12 +150,14 @@ class SimulatorViewModel {
 
     /** CAN interfaces to offer: real SocketCAN devices on Linux, PCAN channels on Windows. */
     fun availableInterfaces(): List<String> {
-        if (isWindows()) return (1..8).map { "PCAN_USBBUS$it" }
+        // The TCP bus is always offered: it is the AAOS emulator bench, and it
+        // needs neither SocketCAN nor CAN hardware, so it is valid on every OS.
+        if (isWindows()) return listOf(AppConfig.CAN_TCP_BUS) + (1..8).map { "PCAN_USBBUS$it" }
         val devs = java.io.File("/sys/class/net").listFiles()?.filter { dev ->
             // ARPHRD_CAN == 280 covers both can* and vcan*.
             runCatching { java.io.File(dev, "type").readText().trim() == "280" }.getOrDefault(false)
         }?.map { it.name }?.sorted().orEmpty()
-        return (devs + AppConfig.CAN_INTERFACE).distinct()
+        return (devs + AppConfig.CAN_INTERFACE + AppConfig.CAN_TCP_BUS).distinct()
     }
 
     // --- view selection (non-destructive: all ECUs keep running) ---
@@ -173,6 +193,19 @@ class SimulatorViewModel {
             instances.forEach { it.clearTxBaseline() } // resend on-change baselines after connect
             _status.value = _status.value.copy(connected = true, lastError = null, driverName = d.name)
             log("INFO", "CAN connected: ${d.name}")
+            driverNameJob?.cancel()
+            driverNameJob = scope.launch {
+                var last = d.name
+                while (_status.value.connected) {
+                    val now = d.name
+                    if (now != last) {
+                        last = now
+                        _status.value = _status.value.copy(driverName = now)
+                        log("INFO", "CAN bus: $now")
+                    }
+                    kotlinx.coroutines.delay(1000)
+                }
+            }
         } catch (e: Throwable) {
             _status.value = _status.value.copy(connected = false, lastError = e.message)
             log("ERROR", "Connect failed: ${e.message}")
@@ -181,26 +214,48 @@ class SimulatorViewModel {
 
     fun disconnect() {
         if (!_status.value.connected) return
+        driverNameJob?.cancel()
+        driverNameJob = null
         driver?.close()
         driver = null
         _status.value = _status.value.copy(connected = false, driverName = driverLabel(_canInterface.value))
         log("INFO", "CAN disconnected")
     }
 
-    /** Resolves the UI's selected interface to a name valid for the current OS
-     *  (Windows can't use a SocketCAN name like "vcan0" — fall back to a real PCAN channel). */
-    private fun resolveInterface(iface: String): String =
-        if (isWindows() && !iface.uppercase().startsWith("PCAN_")) "PCAN_USBBUS1" else iface
+    /** TCP port for a "tcp:<port>" interface, or null if this isn't one.
+     *
+     *  The scheme, not the host OS, picks the transport. A tcp: bus is the AAOS
+     *  emulator bench (see [com.vecu.can.TcpCanDriver]) and works identically on
+     *  Linux and Windows — which also means the emulator path can be exercised
+     *  on Linux before Windows is involved. */
+    private fun tcpPort(iface: String): Int? =
+        iface.removePrefix("tcp:").toIntOrNull()?.takeIf { iface.startsWith("tcp:") }
 
-    private fun buildDriver(iface: String, baud: String): CanDriver =
-        if (isWindows()) {
-            PcanDriver(Pcan.channel(iface), Pcan.baudrate(baud), iface)
-        } else {
-            SocketCanDriver(iface)
+    /** Resolves the UI's selected interface to a name valid for the current OS.
+     *  Windows has no SocketCAN, so a bare "vcan0" there falls back to a real
+     *  PCAN channel — but a tcp: bus is left alone, being OS-independent. */
+    private fun resolveInterface(iface: String): String = when {
+        tcpPort(iface) != null -> iface
+        isWindows() && !iface.uppercase().startsWith("PCAN_") -> "PCAN_USBBUS1"
+        else -> iface
+    }
+
+    /** `baud` is ignored for tcp: buses — a TCP link has no wire speed, and the
+     *  frame rate comes from the ECU TX schedulers instead. */
+    private fun buildDriver(iface: String, baud: String): CanDriver {
+        val port = tcpPort(iface)
+        return when {
+            port != null -> TcpCanDriver(port)
+            isWindows() -> PcanDriver(Pcan.channel(iface), Pcan.baudrate(baud), iface)
+            else -> SocketCanDriver(iface)
         }
+    }
 
-    private fun driverLabel(iface: String): String =
-        if (isWindows()) "PCAN $iface" else "SocketCAN $iface"
+    private fun driverLabel(iface: String): String = when {
+        tcpPort(iface) != null -> "TCP 127.0.0.1:${tcpPort(iface)}"
+        isWindows() -> "PCAN $iface"
+        else -> "SocketCAN $iface"
+    }
 
     fun startEcu() {
         if (_status.value.ecuRunning) return

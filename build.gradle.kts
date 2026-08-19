@@ -112,6 +112,17 @@ tasks.matching {
         it.name.startsWith("package")
 }.configureEach { dependsOn(stageAppResources) }
 
+// Headless exercise of the TCP bus against the AAOS emulator. `./gradlew tcpBench`.
+// Args: [port] [seconds], e.g. `./gradlew tcpBench --args="29536 20"`.
+tasks.register<JavaExec>("tcpBench") {
+    group = "verification"
+    description = "Drives TcpCanDriver against vcan_tcp_bridge in the emulator guest."
+    dependsOn("classes")
+    mainClass.set("com.vecu.tools.TcpBenchKt")
+    classpath = sourceSets["main"].runtimeClasspath
+    workingDir = projectDir
+}
+
 // Headless end-to-end pipeline check (no CAN bus, no UI). `./gradlew selfTest`.
 tasks.register<JavaExec>("selfTest") {
     group = "verification"

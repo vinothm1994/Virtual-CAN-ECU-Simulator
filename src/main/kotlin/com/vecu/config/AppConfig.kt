@@ -39,6 +39,12 @@ object AppConfig {
     /** Fallback CAN interface if the YAML does not specify one (Linux SocketCAN). */
     const val CAN_INTERFACE = "vcan0"
 
+    /** Default TCP bus for the AAOS emulator bench: vcan_tcp_bridge inside the
+     *  guest dials this port on the host's loopback (10.0.2.2 as seen from the
+     *  guest). Needs no CAN hardware and no SocketCAN, so it is the one bus type
+     *  that works identically on Linux and Windows. */
+    const val CAN_TCP_BUS = "tcp:29536"
+
     /** Fallback PCAN bitrate on Windows if the YAML does not specify one. */
     const val CAN_BAUDRATE = "500K"
 
