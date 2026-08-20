@@ -34,13 +34,33 @@ compose.desktop {
     application {
         mainClass = "com.vecu.MainKt"
         nativeDistributions {
-            targetFormats(TargetFormat.Deb, TargetFormat.AppImage)
+            // Msi is here so a Windows build produces an installer rather than
+            // leaving people to run from source with a JDK. NOTE jpackage can
+            // only build a format for the OS it runs on: the Msi is produced by
+            // 'gradlew.bat packageMsi' ON WINDOWS, and needs the WiX Toolset
+            // (v3) on PATH. Building on Linux still yields Deb/AppImage only,
+            // and simply skips Msi rather than failing.
+            targetFormats(TargetFormat.Deb, TargetFormat.AppImage, TargetFormat.Msi)
             packageName = "vecu-sim"
             packageVersion = "1.0.0"
             description = "Virtual CAN ECU Simulator"
             linux {
                 packageName = "vecu-sim"
                 appCategory = "Development"
+            }
+            windows {
+                packageName = "vecu-sim"
+                // Start-menu entry and a desktop shortcut; without these the
+                // MSI installs silently to Program Files with no way to launch
+                // it except by finding the exe.
+                menu = true
+                menuGroup = "INCAR"
+                shortcut = true
+                // MUST stay constant across releases. jpackage keys MSI upgrade
+                // behaviour on it: change it and a new version installs
+                // side-by-side with the old one instead of replacing it, which
+                // then leaves two entries both claiming port 29536.
+                upgradeUuid = "252A1CF5-D2F7-49DB-A6D4-87333A1ED0E0"
             }
             // Bundles native/deps + config so the packaged app is self-contained
             // (no reliance on the process's working directory). Populated by
