@@ -308,16 +308,98 @@ The UI/logic is pure JVM and runs on Windows unchanged; the CAN transport uses
 prebuilt in `native/prebuilt/windows-x86_64/` (cross-built with llvm-mingw), so
 you only need a **JDK 17+** to run — no C++ toolchain.
 
-1. Install the **PEAK driver** (provides `PCANBasic.dll`) and plug in the PCAN-USB.
-2. Run the app; in the toolbar pick the channel (e.g. `PCAN_USBBUS1`) and bitrate
-   (e.g. `500K`) from the CAN interface / bitrate dropdowns.
-3. **Connect** → **Start ECU**. Inject requests / watch status with **PCAN-View**
-   or a second CAN node.
+### What you install vs. what ships
 
-> Windows has no virtual CAN, so live CAN needs the real PCAN-USB (or a PCAN-View
-> loopback with two channels). The UI/logic runs fine without hardware.
+`PCANBasic.dll` is **not** part of this app and is deliberately not bundled: it
+is the user-mode half of a kernel driver pair, so shipping a copy that does not
+match the installed driver invites subtle breakage, and it is PEAK's
+redistributable rather than something this (MIT-track) repo can carry. It is
+loaded by name at runtime (`LoadLibraryA("PCANBasic.dll")`), which is also why
+the build needs no PEAK SDK.
+
+| Ships with vecu-sim | You install |
+|---|---|
+| `vecunative.dll` (this app's JNI bridge) | PEAK **device driver** (so Windows enumerates the adapter) |
+| `libdbcppp.dll` + `libc++.dll`, `libunwind.dll` | **`PCANBasic.dll`** (the PCAN-Basic API) |
+| | the **PCAN-USB adapter** itself |
+
+**PCAN-View is not required.** It is another client of the same DLL, not a
+dependency — handy as a second pair of eyes on the bus, nothing more. The
+confusion is understandable: PEAK's installer bundles the driver, the DLL and
+PCAN-View together, so they arrive as one thing.
+
+### Setup
+
+1. **Install the PEAK driver package** — "PEAK-System Device Driver Setup",
+   from the Downloads > Drivers section of <https://www.peak-system.com>.
+   Accept the default components: the PCAN-Basic API is one of them, and that
+   is what puts `PCANBasic.dll` on the system. PCAN-View is optional (above).
+
+2. **Plug in the PCAN-USB** and confirm Windows sees it — Device Manager should
+   list it with no warning triangle. If it does not, the driver did not install;
+   nothing below will work.
+
+3. **Check `PCANBasic.dll` is there, and is the 64-bit one.** This app's JNI
+   bridge is x86_64, so it must be run by a **64-bit JDK** and will load the
+   64-bit DLL. On 64-bit Windows the two builds live in confusingly named
+   directories:
+
+   | Path | Build |
+   |---|---|
+   | `C:\Windows\System32\PCANBasic.dll` | **64-bit** ← the one this app uses |
+   | `C:\Windows\SysWOW64\PCANBasic.dll` | 32-bit |
+
+   ```powershell
+   Test-Path C:\Windows\System32\PCANBasic.dll   # must be True
+   ```
+
+   If it is missing, install the **PCAN-Basic API** package separately (same
+   downloads page) and copy `x64\PCANBasic.dll` into `System32`, or put it
+   beside the app — any directory on the DLL search path works.
+
+4. **Run the app**; in the toolbar pick the channel (e.g. `PCAN_USBBUS1`) and
+   bitrate (e.g. `500K`) from the CAN interface / bitrate dropdowns.
+
+5. **Connect** → **Start ECU**. Inject requests / watch status with PCAN-View or
+   a second CAN node. The PEAK driver allows several clients on one channel, so
+   PCAN-View can sit on `PCAN_USBBUS1` alongside this app — but the **first**
+   client fixes the bitrate, so set the same value in both or the second one
+   fails to initialise.
+
+### When it does not connect
+
+The two failure modes are deliberately distinguishable. Both arrive as
+`cannot open PCAN_USBBUS1: <detail>. Is the PEAK driver installed and the
+PCAN-USB plugged in?` — the `<detail>` is what tells them apart:
+
+| `<detail>` | Meaning | Fix |
+|---|---|---|
+| `PCANBasic.dll not loaded` | the DLL was never found on the search path, so nothing was even attempted | step 3 |
+| a PEAK status text (e.g. *"A hardware handle is not valid"*) | the DLL loaded and `CAN_Initialize` ran, but failed | adapter unplugged, wrong channel, or another client already holds it at a different bitrate |
+
+A DLL that is present but 32-bit fails the same way as one that is absent (a
+64-bit process cannot load it), so if step 3 looked fine, check the JDK is 64-bit.
+
+### No adapter? Use the TCP bus
+
+Windows has no virtual CAN, so there is no software-only way to get a *PCAN*
+bus. But the CAN interface dropdown offers **`tcp:29536`** first, and that path
+needs neither the driver nor any hardware — `buildDriver` picks it before the
+Windows branch:
+
+```kotlin
+port != null -> TcpCanDriver(port)   // no driver, no adapter
+isWindows()  -> PcanDriver(...)
+else         -> SocketCanDriver(iface)
+```
+
+It behaves identically on Linux and Windows. For exercising the ECU profiles,
+the rule engine or the SWC gesture keys, that is all you need — those are pure
+JVM/Compose and do not care what the transport is.
+
 > The Windows DLLs are cross-built on Linux and validated as PE (arch + JNI
-> exports); on-device run testing is done on the Windows machine.
+> exports); on-device run testing is done on the Windows machine. The PCAN path
+> in particular is structurally validated rather than run-verified in CI.
 
 ## Notes / limitations (MVP)
 
