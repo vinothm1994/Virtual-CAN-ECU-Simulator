@@ -1,0 +1,74 @@
+VERSION ""
+
+NS_ :
+	NS_DESC_
+	CM_
+	BA_DEF_
+	BA_
+	VAL_
+	CAT_DEF_
+	CAT_
+	FILTER
+	BA_DEF_DEF_
+	EV_DATA_
+	ENVVAR_DATA_
+	SGTYPE_
+	SGTYPE_VAL_
+	BA_DEF_SGTYPE_
+	BA_SGTYPE_
+	SIG_TYPE_REF_
+	VAL_TABLE_
+	SIG_GROUP_
+	SIG_VALTYPE_
+	SIGTYPE_VALTYPE_
+	BO_TX_BU_
+	BA_DEF_REL_
+	BA_REL_
+	BA_DEF_DEF_REL_
+	BU_SG_REL_
+	BU_EV_REL_
+	BU_BO_REL_
+	SG_MUL_VAL_
+
+BS_:
+
+BU_: SWC IVI CLUSTER
+
+BO_ 1536 SteeringWheelEvent: 8 SWC
+ SG_ ButtonCode : 0|8@1+ (1,0) [0|255] "" IVI,CLUSTER
+ SG_ ButtonAction : 8|8@1+ (1,0) [0|255] "" IVI,CLUSTER
+ SG_ ButtonSource : 16|8@1+ (1,0) [0|255] "" IVI,CLUSTER
+ SG_ Counter : 24|4@1+ (1,0) [0|15] "" IVI,CLUSTER
+
+CM_ "Steering-wheel controls (SWC), owned by the steering-wheel switch module.
+Always active - every vehicle has a steering wheel, whatever propels it - so
+`requires: []` in the manifest, like body, hvac and steering. CAN ID range
+0x600-0x6FF (reserved for SWC in the multi-powertrain RFC's ID plan).
+
+SWC is the first EVENT-SHAPED domain: a button press is not a state, so this
+frame is sent ONLY when something happens (a press, the long-press threshold,
+each auto-repeat tick, the release). There is deliberately no cyclic heartbeat -
+a receiver that saw a frame per 20 ms would have to de-duplicate it back into
+events, and every frame here is one event exactly once.
+
+ONE generic event carries every button. A signal per button would need a new
+DBC signal, a new Franca attribute and a new consumer branch for every button
+a future steering wheel grows; this needs a new VAL_ entry and nothing else.
+Which is also why nothing here names an application: the wheel reports WHICH
+button did WHAT, and the IVI and the cluster each decide what that means in
+their own context. `VOLUME_UP` is the engraving on the key, not an instruction
+to change the volume.
+
+Cruise/ADAS keys (CRUISE_*, SPEED_+/-) are deliberately absent. They belong to
+the ADAS domain (0x700-0x77F, RFC 10.3), which owns the cruise state machine;
+routing them through a generic HMI input event would put vehicle control on a
+best-effort UI path.";
+CM_ BO_ 1536 "Steering-wheel button event; event-triggered, NOT cyclic. One frame = one event.";
+CM_ SG_ 1536 ButtonCode "Which key. 0 = NONE (no button; not an event). Values are part of the wire contract: append, never renumber. Ranges are grouped by function so a future key lands next to its family: 1-19 navigation, 20-29 media, 30-39 voice, 40-49 phone.";
+CM_ SG_ 1536 ButtonAction "What the key did. The physical gesture only - a long press reports LONG_PRESSED and the receiver must NOT also run the short-click action for it (see the fidl).";
+CM_ SG_ 1536 ButtonSource "Which cluster of switches the key sits in. Metadata for disambiguation and diagnostics; it never decides who consumes the event.";
+CM_ SG_ 1536 Counter "Rolling alive counter 0..15, +1 per transmitted event, wraps; receiver detects a lost event via (rx != (prev+1) mod 16). It matters more here than on a cyclic frame: a dropped cyclic sample is superseded 20 ms later, a dropped RELEASED leaves a key stuck down forever.";
+
+VAL_ 1536 ButtonCode 0 "NONE" 1 "UP" 2 "DOWN" 3 "LEFT" 4 "RIGHT" 5 "OK" 6 "BACK" 7 "HOME" 8 "MENU" 9 "VIEW" 10 "INFO" 20 "VOLUME_UP" 21 "VOLUME_DOWN" 22 "MUTE" 23 "NEXT_TRACK" 24 "PREVIOUS_TRACK" 25 "PLAY_PAUSE" 30 "VOICE" 40 "PHONE_ANSWER" 41 "PHONE_REJECT" ;
+VAL_ 1536 ButtonAction 0 "RELEASED" 1 "PRESSED" 2 "LONG_PRESSED" 3 "REPEAT" ;
+VAL_ 1536 ButtonSource 0 "LEFT_STEERING" 1 "RIGHT_STEERING" 2 "CENTER_STEERING" 3 "ROTARY" ;

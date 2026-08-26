@@ -8,7 +8,10 @@ import com.vecu.can.SocketCanDriver
 import com.vecu.can.TcpCanDriver
 import com.vecu.config.AppConfig
 import com.vecu.config.EcuProfile
+import com.vecu.core.config.GestureSpec
 import com.vecu.core.ecu.EcuInstance
+import com.vecu.core.ecu.GestureDriver
+import com.vecu.core.property.GesturePhase
 import com.vecu.core.property.Property
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -38,6 +41,8 @@ class SimulatorViewModel {
     val profiles: List<EcuProfile> = AppConfig.PROFILES
 
     private val instances: List<EcuInstance>
+    /** Drives PRESSED/LONG_PRESSED/REPEAT/RELEASED for momentary keys. */
+    private val gestures: GestureDriver
     private var driver: CanDriver? = null // built on connect() from the selected bus
     private lateinit var activeInstance: EcuInstance
 
@@ -103,6 +108,13 @@ class SimulatorViewModel {
         // (onInstanceTx), gated on the bus being open. The driver is built in
         // connect() from the interface/bitrate chosen in the UI.
         instances = profiles.map { EcuInstance(it, scope, { driver?.isOpen == true }, ::onInstanceTx) }
+        // Gesture timing comes from the profile that has momentary keys (SWC);
+        // every other profile has none, so its default is never consulted.
+        gestures = GestureDriver(
+            scope,
+            instances.firstOrNull { inst -> inst.properties.any { it.eventMessage != null } }
+                ?.gesture ?: GestureSpec(),
+        )
 
         activeInstance = instances[AppConfig.DEFAULT_PROFILE]
         showActive()
@@ -265,6 +277,7 @@ class SimulatorViewModel {
     }
 
     fun stopEcu() {
+        gestures.releaseAll()
         if (!_status.value.ecuRunning) return
         instances.forEach { it.stop() }
         _status.value = _status.value.copy(ecuRunning = false)
@@ -283,7 +296,40 @@ class SimulatorViewModel {
         log("DEBUG", "[${activeInstance.name}] '${property.id}' -> $signal = ${fmt(value)}")
     }
 
+    /**
+     * A momentary key went down. The gesture driver emits PRESSED immediately
+     * and then LONG_PRESSED / REPEAT for as long as it is held; each step
+     * becomes one event frame.
+     *
+     * The owning instance is captured here rather than read at emit time, so
+     * switching the viewed profile mid-press still delivers that key's RELEASED
+     * to the ECU that saw its PRESSED.
+     */
+    fun onWidgetPress(property: Property) {
+        if (property.eventMessage == null) return
+        val instance = activeInstance
+        gestures.press(property.id) { phase -> emitGesture(instance, property, phase) }
+    }
+
+    /** A momentary key came up: cancel long-press/repeat and emit RELEASED. */
+    fun onWidgetRelease(property: Property) {
+        if (property.eventMessage == null) return
+        gestures.release(property.id)
+    }
+
+    private fun emitGesture(instance: EcuInstance, property: Property, phase: GesturePhase) {
+        val message = property.eventMessage ?: return
+        val phaseSignal = property.phaseSignal ?: return
+        val phaseValue = property.phaseValues[phase] ?: return
+        val values = property.eventSignals + (phaseSignal to phaseValue)
+        instance.sendEvent(message, values)
+        log("DEBUG", "[${instance.name}] '${property.id}' $phase -> $message")
+    }
+
     fun shutdown() {
+        // A key still held at shutdown must still be released, or the last thing
+        // on the bus is a press with no matching release.
+        gestures.releaseAll()
         stopEcu()
         disconnect()
         stateCollectJob?.cancel()

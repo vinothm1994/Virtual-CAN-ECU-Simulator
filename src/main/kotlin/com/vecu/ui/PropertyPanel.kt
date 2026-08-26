@@ -57,6 +57,9 @@ fun PropertyPanel(properties: List<Property>, values: Map<String, Double>, onCol
 }
 
 private fun display(p: Property, v: Double): String = when (p.widget) {
+    // A momentary key holds no value — the last event it sent is shown by the
+    // profile's own read-back widgets, not by the key itself.
+    WidgetType.MOMENTARY -> "key"
     WidgetType.SWITCH -> if (v >= 0.5) "ON" else "OFF"
     WidgetType.DROPDOWN -> p.options.firstOrNull { it.value == v }?.label ?: fmtVal(v)
     WidgetType.TEMPERATURE -> "%.1f°C".format(v)

@@ -176,7 +176,7 @@ defaults:                        # optional — initial signal values (physical 
 ui:                              # widgets, rendered in this order
   - id: fanSpeed                 # unique id (required)
     title: Fan Speed             # label (optional; defaults to id)
-    widget: slider               # switch|slider|temperature|dropdown|gauge|label|button
+    widget: slider               # switch|slider|temperature|dropdown|gauge|label|button|momentary
     request: HvacFanSpeedReq     # optional — signal the control writes
     feedback: HvacFanSpeed       # optional — signal it displays / reads back
     min: 0                       # optional — else the DBC signal's min
@@ -204,7 +204,51 @@ tx:                              # status transmission
 | `dropdown` | `request` | enum label | options come from the DBC `VAL_` table |
 | `gauge` | — (read-only) | `feedback` | arc display |
 | `label` | — (read-only) | `feedback` | text |
-| `button` | `request` = 1 | — | momentary |
+| `button` | `request` = 1 | — | one-shot: writes 1 and nothing else |
+| `momentary` | fires an **event** per gesture step | — | a key, not a value — see below |
+
+#### `momentary` — keys that report gestures
+
+Every widget above writes a signal that then sits there until something changes
+it. A button press is not like that: it happens, and then it is over. So
+`momentary` does not write a value at all — it fires a **message**, once per
+gesture step:
+
+```
+PRESSED  ──(long_press_ms)──►  LONG_PRESSED  ──(repeat_ms)──►  REPEAT … ──►  RELEASED
+```
+
+```yaml
+gesture:                         # profile-level; defaults 600 / 150
+  long_press_ms: 600
+  repeat_ms: 150
+
+ui:
+  - id: volUp
+    title: Volume +
+    widget: momentary
+    event: SteeringWheelEvent    # message fired once per gesture step
+    phase: ButtonAction          # signal carrying PRESSED/LONG_PRESSED/REPEAT/RELEASED
+    set:                         # signals identifying this key
+      ButtonCode: VOLUME_UP      # a DBC VAL_ label, or a plain number
+      ButtonSource: RIGHT_STEERING
+```
+
+- `set:` values may be written as **DBC `VAL_` labels**, resolved at load, so the
+  YAML never repeats a number the DBC already owns and a typo fails at load
+  instead of putting a wrong code on the bus. The four `phase` values are
+  resolved the same way, by name.
+- Its message is **absent from `tx:`**. `on_change` would not work: change
+  detection runs on the 100 ms engine tick, so a click that pressed and released
+  inside one tick would be seen only as its release, and two identical `REPEAT`
+  steps would collapse into one. An event has to be sent when it occurs.
+- The alive `counter` rule still advances once per transmit — which here means
+  once per gesture step, exactly what it should count.
+- `gesture:` timing is a **simulator** setting, not a CAN contract. A real switch
+  module has its own thresholds, and no consumer may infer a long press from
+  timing — that is what the `LONG_PRESSED` action on the wire is for.
+
+See `config/swc.yml` (the Virtual SWC ECU) for the whole thing.
 
 `request` is what the control writes (a command, as if from the IVI); `feedback`
 is what it reads back (the ECU's reported state). For pure telemetry the two are

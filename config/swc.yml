@@ -1,0 +1,106 @@
+# Virtual SWC ECU — the steering-wheel switch module. Like Steering, Body and
+# HVAC it runs on every vehicle whatever propels it, so it is not part of the
+# powertrain arithmetic.
+#
+# This is the first EVENT-shaped profile, and it works differently from every
+# other one here. The others hold STATE and transmit it — cyclically, or when it
+# changes. A button press is not a state: it happens, and then it is over. So
+# SteeringWheelEvent is absent from `tx:` entirely and is sent by the `momentary`
+# widgets below, once per gesture step, the moment the gesture step happens.
+#
+# Why not on_change? Change detection runs on the 100 ms engine tick, so a quick
+# click that pressed and released inside one tick would be seen only as the
+# release — the press would silently never reach the bus. An event has to be
+# sent when it occurs, not noticed afterwards.
+
+ecu:
+  name: SWC
+
+defaults:
+  ButtonCode: 0.0                 # NONE — no key held at power-on
+  ButtonAction: 0.0               # RELEASED
+  ButtonSource: 0.0
+  Counter: 0.0
+
+# Gesture timing for `momentary` widgets. These are SIMULATOR settings, not part
+# of the CAN contract: a real wheel module has its own thresholds in firmware,
+# and no consumer is allowed to infer a long press from timing anyway — that is
+# what the LONG_PRESSED action is for.
+gesture:
+  long_press_ms: 600              # hold this long and PRESSED is followed by LONG_PRESSED
+  repeat_ms: 150                  # then REPEAT at this rate until release
+
+# Momentary keys. Each declares the message it fires, the signal carrying the
+# gesture phase, and the signal values that identify it. Values may be written
+# as VAL_ labels from the DBC (resolved at load) so this file never repeats a
+# number the DBC already owns — rename nothing, renumber nothing, and a typo
+# fails at load instead of putting a wrong code on the bus.
+#
+# Ordered so the panel reads as the wheel is laid out: the D-pad cluster first,
+# then its menu keys, then media, voice and phone. The grid itself is adaptive
+# (it reflows to the window width), so this is reading order, not a fixed
+# geometry.
+ui:
+  # --- navigation cluster: UP / LEFT · OK · RIGHT / DOWN ---
+  - { id: up,    title: UP,    widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: UP,    ButtonSource: LEFT_STEERING } }
+  - { id: left,  title: LEFT,  widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: LEFT,  ButtonSource: LEFT_STEERING } }
+  - { id: ok,    title: OK,    widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: OK,    ButtonSource: LEFT_STEERING } }
+  - { id: right, title: RIGHT, widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: RIGHT, ButtonSource: LEFT_STEERING } }
+  - { id: down,  title: DOWN,  widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: DOWN,  ButtonSource: LEFT_STEERING } }
+  - { id: back,  title: BACK,  widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: BACK,  ButtonSource: LEFT_STEERING } }
+  - { id: home,  title: HOME,  widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: HOME,  ButtonSource: LEFT_STEERING } }
+  - { id: menu,  title: MENU,  widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: MENU,  ButtonSource: LEFT_STEERING } }
+  - { id: view,  title: VIEW,  widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: VIEW,  ButtonSource: LEFT_STEERING } }
+  - { id: info,  title: INFO,  widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: INFO,  ButtonSource: LEFT_STEERING } }
+
+  # --- media cluster, right-hand spokes ---
+  - { id: volUp,   title: Volume +,    widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: VOLUME_UP,      ButtonSource: RIGHT_STEERING } }
+  - { id: volDown, title: Volume -,    widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: VOLUME_DOWN,    ButtonSource: RIGHT_STEERING } }
+  - { id: mute,    title: Mute,        widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: MUTE,           ButtonSource: RIGHT_STEERING } }
+  - { id: prev,    title: Previous,    widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: PREVIOUS_TRACK, ButtonSource: RIGHT_STEERING } }
+  - { id: playPause, title: Play/Pause, widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: PLAY_PAUSE,     ButtonSource: RIGHT_STEERING } }
+  - { id: next,    title: Next,        widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: NEXT_TRACK,     ButtonSource: RIGHT_STEERING } }
+
+  # --- voice: the key whose short and long gestures differ, so the one worth
+  #     holding down to watch PRESSED -> LONG_PRESSED -> REPEAT -> RELEASED. ---
+  - { id: voice, title: Voice, widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: VOICE, ButtonSource: CENTER_STEERING } }
+
+  # --- phone ---
+  - { id: answer, title: Answer, widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: PHONE_ANSWER, ButtonSource: RIGHT_STEERING } }
+  - { id: reject, title: Reject, widget: momentary, event: SteeringWheelEvent, phase: ButtonAction,
+      set: { ButtonCode: PHONE_REJECT, ButtonSource: RIGHT_STEERING } }
+
+  # --- read-back of the last event actually put on the bus ---
+  - { id: lastCode,    title: Last Code,    widget: label, feedback: ButtonCode }
+  - { id: lastAction,  title: Last Action,  widget: label, feedback: ButtonAction }
+  - { id: lastCounter, title: Alive Counter, widget: gauge, min: 0, max: 15, feedback: Counter }
+
+rules:
+  # Rolling alive counter; the receiver detects a lost event via
+  # (rx != (prev+1) mod 16). Advances once per actual transmit, not per tick —
+  # so here that is once per gesture step, which is exactly what the counter is
+  # supposed to count.
+  - { type: counter, to: Counter, wrap: 16 }
+
+# Deliberately empty. SteeringWheelEvent is neither cyclic nor on-change: see the
+# header. A real SWC module is silent between presses, and adding a heartbeat
+# here would make every consumer de-duplicate frames back into events.
+tx: []

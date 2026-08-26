@@ -4,6 +4,7 @@ import com.vecu.config.AppConfig
 import com.vecu.core.config.SimConfig
 import com.vecu.core.ecu.EcuInstance
 import com.vecu.core.ecu.VirtualEcu
+import com.vecu.core.property.GesturePhase
 import com.vecu.core.property.PropertyManager
 import com.vecu.core.rule.RuleEngine
 import com.vecu.dbc.DbcService
@@ -134,6 +135,92 @@ fun main() {
         "= ${vehEcu.state.get("SteeringCounter")} (expected 4.0 after 20 transmits, wraps at 16)",
     )
     vehDbc.close()
+
+    // --- SWC profile: the event path. What is being checked here is that a
+    //     gesture becomes a SEQUENCE of frames, and that each one carries the
+    //     right code — none of which the state/on-change path can express. ---
+    run {
+        val swc = AppConfig.PROFILES.first { it.name == "SWC" }
+        val swcDbc = DbcService().apply { load(swc.dbc) }
+        val swcConfig = SimConfig.load(swc.yaml)
+        val props = PropertyManager.build(swcConfig.widgets, swcDbc.schema)
+
+        // VAL_ labels in the YAML resolve to the DBC's own numbers, so the
+        // profile never repeats a code the DBC already owns.
+        val volUp = props.first { it.id == "volUp" }
+        check(
+            "SWC VAL_ label resolves (VOLUME_UP -> 20)",
+            volUp.eventSignals["ButtonCode"] == 20.0,
+            "= ${volUp.eventSignals["ButtonCode"]}",
+        )
+        check(
+            "SWC source resolves (RIGHT_STEERING -> 1)",
+            volUp.eventSignals["ButtonSource"] == 1.0,
+            "= ${volUp.eventSignals["ButtonSource"]}",
+        )
+        val voice = props.first { it.id == "voice" }
+        check(
+            "SWC gesture phases resolve from VAL_",
+            voice.phaseValues[GesturePhase.PRESSED] == 1.0 &&
+                voice.phaseValues[GesturePhase.LONG_PRESSED] == 2.0 &&
+                voice.phaseValues[GesturePhase.REPEAT] == 3.0 &&
+                voice.phaseValues[GesturePhase.RELEASED] == 0.0,
+            "${voice.phaseValues}",
+        )
+        check("SWC key targets its event message", voice.eventMessage == "SteeringWheelEvent")
+        check(
+            "SWC sends nothing cyclically or on change",
+            swcConfig.tx.isEmpty(),
+            "an event must be sent when it happens, not noticed on a tick",
+        )
+
+        // A full VOICE long press through the real EcuInstance TX path: every
+        // gesture step must reach the bus as its own frame, with the alive
+        // counter advancing by exactly one per frame.
+        val scope = CoroutineScope(Dispatchers.Default)
+        val sent = mutableListOf<Map<String, Double>>()
+        val inst = EcuInstance(swc, scope, { true }, { _, _, _, values -> sent += values })
+        val phases = listOf(
+            GesturePhase.PRESSED, GesturePhase.LONG_PRESSED,
+            GesturePhase.REPEAT, GesturePhase.REPEAT, GesturePhase.RELEASED,
+        )
+        for (phase in phases) {
+            inst.sendEvent(
+                "SteeringWheelEvent",
+                voice.eventSignals + ("ButtonAction" to voice.phaseValues.getValue(phase)),
+            )
+        }
+        check("SWC long press = one frame per gesture step", sent.size == 5, "${sent.size} frames")
+        check(
+            "SWC frames carry VOICE from the centre spoke",
+            sent.all { it["ButtonCode"] == 30.0 && it["ButtonSource"] == 2.0 },
+        )
+        check(
+            "SWC actions in order: PRESSED LONG_PRESSED REPEAT REPEAT RELEASED",
+            sent.map { it["ButtonAction"] } == listOf(1.0, 2.0, 3.0, 3.0, 0.0),
+            "${sent.map { it["ButtonAction"] }}",
+        )
+        // Two identical REPEATs are two events. Change detection would have
+        // collapsed them into one and the key would scroll once and stop; the
+        // counter is what tells them apart on the wire.
+        check(
+            "SWC alive counter is +1 per event, never coalesced",
+            sent.map { it["Counter"] } == listOf(0.0, 1.0, 2.0, 3.0, 4.0),
+            "${sent.map { it["Counter"] }}",
+        )
+
+        // The frame really encodes: round-trip the last one through the DBC.
+        val frame = swcDbc.encode("SteeringWheelEvent", sent.last())!!
+        val rtSwc = swcDbc.decode(frame)!!
+        check("SWC frame is CAN 0x600", frame.idHex().endsWith("600"), frame.idHex())
+        check(
+            "SWC RELEASED round-trips",
+            rtSwc.values["ButtonCode"] == 30.0 && rtSwc.values["ButtonAction"] == 0.0,
+            "${rtSwc.values}",
+        )
+        inst.close()
+        swcDbc.close()
+    }
 
     println("=== ${if (failures == 0) "ALL PASSED" else "$failures FAILED"} ===")
     if (failures > 0) kotlin.system.exitProcess(1)

@@ -38,8 +38,43 @@ object PropertyManager {
             unit = sig?.unit.orEmpty(),
             options = options,
             snapZero = spec.snapZero,
+            eventMessage = spec.event,
+            eventSignals = spec.set.mapValues { (signal, written) ->
+                resolveValue(signal, written, schema)
+            },
+            phaseSignal = spec.phase,
+            phaseValues = spec.phase?.let { resolvePhases(it, schema) }.orEmpty(),
         )
     }
+
+    /**
+     * Turns a YAML `set:` entry into the number that goes on the wire. A plain
+     * number is taken as written; anything else is looked up in the DBC VAL_
+     * table of the signal it is being written to, so a profile never repeats a
+     * code the DBC already owns and a typo fails here rather than putting a
+     * wrong ButtonCode on the bus.
+     */
+    private fun resolveValue(signal: String, written: String, schema: DbcSchema): Double {
+        written.toDoubleOrNull()?.let { return it }
+        val info = schema.signalInfo[signal]
+            ?: error("widget references unknown DBC signal '$signal'")
+        val match = info.values.entries.firstOrNull { it.value.equals(written, ignoreCase = true) }
+            ?: error(
+                "'$written' is not a VAL_ label of signal '$signal' " +
+                    "(known: ${info.values.values.sorted().joinToString(", ")})",
+            )
+        return match.key.toDouble()
+    }
+
+    /**
+     * Resolves the four gesture phases against the phase signal's VAL_ table.
+     * A profile whose DBC is missing one of them fails at load: a key that can
+     * be pressed but never released would leave every consumer holding it down.
+     */
+    private fun resolvePhases(phaseSignal: String, schema: DbcSchema): Map<GesturePhase, Double> =
+        GesturePhase.entries.associateWith { phase ->
+            resolveValue(phaseSignal, phase.name, schema)
+        }
 
     /** Integer-coded signals step by 1; scaled analog signals by their factor. */
     private fun defaultStep(sig: SignalInfo?): Double {

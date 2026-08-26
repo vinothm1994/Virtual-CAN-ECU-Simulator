@@ -31,6 +31,11 @@ object AppConfig {
         EcuProfile("Steering", "config/steering.dbc", "config/steering.yml"),
         EcuProfile("Body", "config/body.dbc", "config/body.yml"),
         EcuProfile("HVAC", "config/hvac.dbc", "config/hvac.yml"),
+        // Steering-wheel controls. The one EVENT-shaped profile: its widgets
+        // report gestures (press / long press / repeat / release) instead of
+        // holding state, and its frame is sent per gesture step rather than
+        // cyclically. See config/swc.yml.
+        EcuProfile("SWC", "config/swc.dbc", "config/swc.yml"),
     )
 
     /** Index into [PROFILES] loaded at startup. */

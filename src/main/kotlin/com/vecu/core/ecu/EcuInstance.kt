@@ -3,6 +3,7 @@ package com.vecu.core.ecu
 import com.vecu.can.CanFrame
 import com.vecu.config.AppConfig
 import com.vecu.config.EcuProfile
+import com.vecu.core.config.GestureSpec
 import com.vecu.core.config.SimConfig
 import com.vecu.core.property.Property
 import com.vecu.core.property.PropertyManager
@@ -33,6 +34,8 @@ class EcuInstance(
     val dbc: DbcService = DbcService().apply { load(AppConfig.resolvePath(profile.dbc)) }
     val config: SimConfig = SimConfig.load(AppConfig.resolvePath(profile.yaml))
     val properties: List<Property> = PropertyManager.build(config.widgets, dbc.schema)
+    /** Gesture timing for this ECU's momentary keys (YAML `gesture:` block). */
+    val gesture: GestureSpec get() = config.gesture
     val name: String get() = config.ecuName
     val messageCount: Int get() = dbc.schema.messages.size
 
@@ -55,6 +58,23 @@ class EcuInstance(
 
     /** Injects a request signal locally (from a UI control). */
     fun setSignal(signal: String, value: Double) = ecu.setSignal(signal, value)
+
+    /**
+     * Sends [message] ONCE, right now, with [overrides] applied to the state
+     * first — the event path, as opposed to the cyclic and on-change paths.
+     *
+     * Change detection cannot carry an event. It runs on the 100 ms engine tick
+     * and compares the whole message, so a key pressed and released inside one
+     * tick would be seen only as its release, and two identical auto-repeat
+     * steps would collapse into one. An event has to go out when it occurs.
+     *
+     * The TX baseline is still updated, so the on-change path does not then
+     * re-send the same frame a tick later.
+     */
+    fun sendEvent(message: String, overrides: Map<String, Double>) {
+        overrides.forEach { (signal, value) -> ecu.setSignal(signal, value) }
+        transmit(message)
+    }
 
     /** Starts the rule tick loop and the cyclic transmit scheduler. */
     fun start() {

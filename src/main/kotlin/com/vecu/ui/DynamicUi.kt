@@ -33,6 +33,9 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.text.font.FontFamily
@@ -49,6 +52,8 @@ import kotlin.math.roundToInt
 fun DynamicWidget(
     property: Property,
     values: Map<String, Double>,
+    onPress: () -> Unit = {},
+    onRelease: () -> Unit = {},
     onChange: (Double) -> Unit,
 ) {
     val control = property.requestSignal?.let { values[it] }
@@ -72,6 +77,7 @@ fun DynamicWidget(
             WidgetType.BUTTON -> OutlinedButton(onClick = { onChange(1.0) }) {
                 Text(property.title, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
+            WidgetType.MOMENTARY -> MomentaryWidget(property, onPress, onRelease)
         }
     }
 }
@@ -96,7 +102,11 @@ private fun WidgetCard(property: Property, feedback: Double, content: @Composabl
                 )
                 // Gauges show the value + unit in their body already, so the
                 // header tag there would be redundant.
-                if (property.widget != WidgetType.GAUGE) {
+                // A gauge shows its value in the body already; a momentary key has
+                // no value at all — it reports gestures, not state.
+                if (property.widget != WidgetType.GAUGE &&
+                    property.widget != WidgetType.MOMENTARY
+                ) {
                     Text(
                         feedbackTag(property, feedback),
                         fontSize = 12.sp,
@@ -110,6 +120,53 @@ private fun WidgetCard(property: Property, feedback: Double, content: @Composabl
             Spacer(Modifier.height(10.dp))
             content()
         }
+    }
+}
+
+/**
+ * A key that reports a GESTURE, not a value: it fires on the way down and again
+ * on the way up, with long-press and auto-repeat in between (see
+ * [com.vecu.core.ecu.GestureDriver]).
+ *
+ * `detectTapGestures` rather than a Button's onClick, because a click is one
+ * discrete callback and this needs both edges. `tryAwaitRelease` also returns
+ * when the pointer is dragged off the key, so a finger slid away still produces
+ * a RELEASED — a key that can be pressed but not released leaves every consumer
+ * holding it down.
+ */
+@Composable
+private fun MomentaryWidget(property: Property, onPress: () -> Unit, onRelease: () -> Unit) {
+    var down by remember { mutableStateOf(false) }
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(46.dp)
+            .clip(RoundedCornerShape(8.dp))
+            .background(if (down) MaterialTheme.colorScheme.primary else Color(0xFF2C3742))
+            .pointerInput(property.id) {
+                detectTapGestures(
+                    onPress = {
+                        down = true
+                        onPress()
+                        tryAwaitRelease()
+                        down = false
+                        onRelease()
+                    },
+                )
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        // The card header already carries the key's name, so the pad shows what
+        // it is DOING instead — which for a gesture key is the only interesting
+        // part, and makes "hold it to get a long press" discoverable.
+        Text(
+            if (down) "HELD" else "press · hold",
+            fontSize = 14.sp,
+            fontWeight = FontWeight.SemiBold,
+            color = if (down) Color(0xFF10161C) else Color(0xFF8E9BA8),
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }
 

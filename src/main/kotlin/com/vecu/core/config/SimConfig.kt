@@ -15,6 +15,15 @@ data class WidgetSpec(
     val max: Double?,
     val step: Double?,
     val snapZero: Boolean = false,
+
+    // --- momentary (event) widgets only ---
+    /** DBC message fired once per gesture step. */
+    val event: String? = null,
+    /** Signal carrying the gesture phase (e.g. ButtonAction). */
+    val phase: String? = null,
+    /** Signals identifying this key, as written in the YAML: either a number or
+     *  a VAL_ label from the DBC (resolved by [com.vecu.core.property.PropertyManager]). */
+    val set: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -51,6 +60,19 @@ data class TxSpec(
     val onChange: Boolean,
 )
 
+/**
+ * Gesture timing for `momentary` widgets: how long a key must be held before it
+ * becomes a long press, and how fast it then auto-repeats.
+ *
+ * SIMULATOR settings, not part of the CAN contract. A real switch module has its
+ * own thresholds in firmware, and no consumer may infer a long press from
+ * timing anyway — that is what the LONG_PRESSED action exists for.
+ */
+data class GestureSpec(
+    val longPressMs: Long = 600,
+    val repeatMs: Long = 150,
+)
+
 /** The whole YAML config: what to show, how the ECU behaves, what it transmits. */
 data class SimConfig(
     val ecuName: String,
@@ -58,6 +80,7 @@ data class SimConfig(
     val widgets: List<WidgetSpec>,
     val rules: List<RuleSpec>,
     val tx: List<TxSpec>,
+    val gesture: GestureSpec = GestureSpec(),
 ) {
     companion object {
         @Suppress("UNCHECKED_CAST")
@@ -81,6 +104,12 @@ data class SimConfig(
                     max = w["max"].dbl(),
                     step = w["step"].dbl(),
                     snapZero = w["snap_zero"] as? Boolean ?: false,
+                    event = w["event"] as? String,
+                    phase = w["phase"] as? String,
+                    // Left as written: a VAL_ label needs the DBC to resolve,
+                    // which the config loader deliberately does not have.
+                    set = (w["set"] as? Map<Any?, Any?> ?: emptyMap())
+                        .entries.associate { it.key.toString() to it.value.toString() },
                 )
             }
 
@@ -106,12 +135,19 @@ data class SimConfig(
                 )
             }
 
+            val gestureNode = root["gesture"] as? Map<Any?, Any?> ?: emptyMap()
+            val gesture = GestureSpec(
+                longPressMs = (gestureNode["long_press_ms"] as? Number)?.toLong() ?: 600,
+                repeatMs = (gestureNode["repeat_ms"] as? Number)?.toLong() ?: 150,
+            )
+
             return SimConfig(
                 ecuName = ecu["name"].str("ECU"),
                 defaults = defaults,
                 widgets = widgets,
                 rules = rules,
                 tx = tx,
+                gesture = gesture,
             )
         }
 

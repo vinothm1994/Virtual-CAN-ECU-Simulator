@@ -112,7 +112,12 @@ fun App(vm: SimulatorViewModel) {
                         modifier = Modifier.fillMaxSize().padding(6.dp),
                     ) {
                         items(properties, key = { it.id }) { p ->
-                            DynamicWidget(p, values) { v -> vm.onWidgetChange(p, v) }
+                            DynamicWidget(
+                                p,
+                                values,
+                                onPress = { vm.onWidgetPress(p) },
+                                onRelease = { vm.onWidgetRelease(p) },
+                            ) { v -> vm.onWidgetChange(p, v) }
                         }
                     }
                 }
