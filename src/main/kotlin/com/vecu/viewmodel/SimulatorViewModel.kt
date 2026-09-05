@@ -18,11 +18,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import java.time.LocalTime
 import java.time.format.DateTimeFormatter
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicLong
 
 /**
@@ -102,6 +104,13 @@ class SimulatorViewModel {
      *  the emulator usually boots after this app. Snapshotting the name at
      *  connect() froze the label on "(waiting)" even while frames were flowing. */
     private var driverNameJob: Job? = null
+
+    /** Last transmit per ECU, written from every instance's TX thread. Feeds the
+     *  sidebar's "active" count, which is about what is on the bus rather than
+     *  what is loaded — an ECU whose tx: is empty (SWC until you press a key)
+     *  is loaded and idle, and the card should say so. */
+    private val lastTxAt = ConcurrentHashMap<String, Long>()
+    private var activityJob: Job? = null
 
     init {
         // One instance per profile; they transmit via the shared driver
@@ -272,7 +281,19 @@ class SimulatorViewModel {
     fun startEcu() {
         if (_status.value.ecuRunning) return
         instances.forEach { it.start() }
-        _status.value = _status.value.copy(ecuRunning = true)
+        _status.value = _status.value.copy(ecuRunning = true, ecuStartedAt = System.currentTimeMillis())
+        // On the ViewModel's own scope, like everything else with CAN timing:
+        // a minimized window must not stall it (see the TX rule in CLAUDE.md).
+        activityJob = scope.launch {
+            while (true) {
+                val cutoff = System.currentTimeMillis() - ACTIVE_TX_WINDOW_MS
+                val active = lastTxAt.count { it.value >= cutoff }
+                if (active != _status.value.activeEcus) {
+                    _status.value = _status.value.copy(activeEcus = active)
+                }
+                delay(ACTIVITY_POLL_MS)
+            }
+        }
         log("INFO", "Started ${instances.size} ECUs (tick ${AppConfig.TICK_INTERVAL_MS} ms)")
     }
 
@@ -280,7 +301,10 @@ class SimulatorViewModel {
         gestures.releaseAll()
         if (!_status.value.ecuRunning) return
         instances.forEach { it.stop() }
-        _status.value = _status.value.copy(ecuRunning = false)
+        activityJob?.cancel()
+        activityJob = null
+        lastTxAt.clear()
+        _status.value = _status.value.copy(ecuRunning = false, activeEcus = 0, ecuStartedAt = null)
         log("INFO", "Stopped all ECUs")
     }
 
@@ -353,6 +377,7 @@ class SimulatorViewModel {
 
     private fun onInstanceTx(inst: EcuInstance, frame: CanFrame, message: String, values: Map<String, Double>) {
         driver?.send(frame) ?: return
+        lastTxAt[inst.name] = System.currentTimeMillis()
         addCanRow(Direction.TX, frame, message, values, inst.name)
     }
 
@@ -390,4 +415,12 @@ class SimulatorViewModel {
 
     private fun isWindows(): Boolean =
         System.getProperty("os.name").orEmpty().lowercase().contains("win")
+
+    private companion object {
+        /** An ECU counts as active if it transmitted within this window. Longer
+         *  than the slowest cyclic period in the YAMLs, so a 1 s message does
+         *  not flicker in and out of the count. */
+        const val ACTIVE_TX_WINDOW_MS = 2_000L
+        const val ACTIVITY_POLL_MS = 500L
+    }
 }

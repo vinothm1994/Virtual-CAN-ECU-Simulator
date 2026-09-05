@@ -7,6 +7,7 @@ import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -24,9 +25,9 @@ import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.SwapHoriz
-import androidx.compose.material.icons.filled.ViewList
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -58,6 +59,7 @@ fun App(vm: SimulatorViewModel) {
     val appLog by vm.appLog.collectAsState()
 
     var showProperties by remember { mutableStateOf(true) }
+    var navExpanded by remember { mutableStateOf(true) }
     var showCanMonitor by remember { mutableStateOf(true) }
     var showAppLog by remember { mutableStateOf(true) }
     // Hoisted out of CanMonitor: AnimatedVisibility disposes the panel when it
@@ -68,9 +70,6 @@ fun App(vm: SimulatorViewModel) {
         Column(Modifier.fillMaxSize().background(Background)) {
             Toolbar(
                 status = status,
-                profiles = vm.profiles.map { it.name },
-                activeProfile = activeProfile.name,
-                onSelectProfile = vm::selectProfile,
                 interfaces = interfaces,
                 canInterface = canInterface,
                 onSelectInterface = vm::setInterface,
@@ -93,13 +92,26 @@ fun App(vm: SimulatorViewModel) {
                 }
             }
 
-            Row(Modifier.weight(1f).fillMaxWidth()) {
-                VerticalRailTab(
-                    icon = Icons.Filled.ViewList,
-                    label = "Properties",
-                    checked = showProperties,
-                    onClick = { showProperties = !showProperties },
+            BoxWithConstraints(Modifier.weight(1f).fillMaxWidth()) {
+                // Responsive default, not a lock: crossing the threshold sets the
+                // sidebar, and the user's own toggle stands until it is crossed
+                // again. Sidebar + Properties is 450 dp of a 1200 dp window.
+                val narrow = maxWidth < 1000.dp
+                LaunchedEffect(narrow) { navExpanded = !narrow }
+
+                Row(Modifier.fillMaxSize()) {
+                NavSidebar(
+                    profiles = vm.profiles,
+                    activeProfile = activeProfile.name,
+                    onSelectProfile = vm::selectProfile,
+                    status = status,
+                    canInterface = canInterface,
+                    expanded = navExpanded,
+                    onToggleExpanded = { navExpanded = !navExpanded },
+                    propertiesShown = showProperties,
+                    onToggleProperties = { showProperties = !showProperties },
                 )
+                VDivider()
                 AnimatedVisibility(visible = showProperties, enter = expandHorizontally(), exit = shrinkHorizontally()) {
                     Row {
                         Box(Modifier.width(250.dp).fillMaxHeight().background(PanelSurface)) {
@@ -126,7 +138,7 @@ fun App(vm: SimulatorViewModel) {
                 }
                 AnimatedVisibility(
                     visible = showCanMonitor,
-                    modifier = Modifier.weight(.7f),
+                    modifier = Modifier.weight(.9f),
                     enter = expandHorizontally(),
                     exit = shrinkHorizontally(),
                 ) {
@@ -143,6 +155,7 @@ fun App(vm: SimulatorViewModel) {
                     checked = showCanMonitor,
                     onClick = { showCanMonitor = !showCanMonitor },
                 )
+                }
             }
 
             AnimatedVisibility(visible = showAppLog, enter = expandVertically(), exit = shrinkVertically()) {

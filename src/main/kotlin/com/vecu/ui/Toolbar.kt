@@ -12,14 +12,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,13 +33,16 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.vecu.viewmodel.SimStatus
 
-/** Top toolbar: Connect/Disconnect, Start/Stop ECU, Clear Log, live status. */
+/**
+ * Top toolbar: bus selection and the three actions you repeat all day.
+ *
+ * The ECU profile chips and the CAN/ECU status dots used to live here; both
+ * moved to the nav sidebar, the dots because two live indicators that can
+ * disagree are worse than one.
+ */
 @Composable
 fun Toolbar(
     status: SimStatus,
-    profiles: List<String>,
-    activeProfile: String,
-    onSelectProfile: (String) -> Unit,
     interfaces: List<String>,
     canInterface: String,
     onSelectInterface: (String) -> Unit,
@@ -67,9 +67,6 @@ fun Toolbar(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        ProfileSelector(profiles, activeProfile, onSelectProfile)
-        Spacer(Modifier.width(4.dp))
-
         // CAN bus selection (editable only while disconnected).
         DropdownField(canInterface, interfaces, onSelectInterface, busEditable)
         if (bitrateEditable) {
@@ -97,59 +94,6 @@ fun Toolbar(
         }
 
         OutlinedButton(onClick = onClear) { Text("Clear Log") }
-
-        Spacer(Modifier.width(16.dp))
-
-        StatusDot("CAN", status.connected, status.driverName)
-        Spacer(Modifier.width(12.dp))
-        StatusDot(
-            "ECU",
-            status.ecuRunning,
-            if (status.ecuRunning) "running (${status.ecuCount})" else "stopped",
-        )
-    }
-}
-
-/**
- * ECU profile chooser: one chip per profile, laid out as a segmented row.
- *
- * This was a dropdown, which cost two clicks and hid the other profiles behind
- * a menu. That is the wrong shape here: every profile is ALREADY running (see
- * the run-all/view-one model in the README), so this control does not choose
- * what is active, only what you are looking at. Switching view is the single
- * most frequent action in the app, and the set is small and fixed, so showing
- * them all and highlighting the current one makes the state legible at a glance
- * and the switch a single click.
- *
- * No scroll modifier here: the toolbar Row this sits in is ALREADY horizontally
- * scrollable, and nesting a second one measures this with an infinite width
- * constraint, which Compose rejects outright. The parent's scroll covers the
- * seventh-ECU case anyway.
- */
-@Composable
-private fun ProfileSelector(profiles: List<String>, active: String, onSelect: (String) -> Unit) {
-    Row(
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        profiles.forEach { name ->
-            val selected = name == active
-            FilterChip(
-                selected = selected,
-                onClick = { if (!selected) onSelect(name) },
-                label = { Text(name) },
-                colors = FilterChipDefaults.filterChipColors(
-                    selectedContainerColor = VecuColors.rx.copy(alpha = 0.20f),
-                    selectedLabelColor = VecuColors.rx,
-                ),
-                border = FilterChipDefaults.filterChipBorder(
-                    enabled = true,
-                    selected = selected,
-                    borderColor = VecuColors.idle.copy(alpha = 0.5f),
-                    selectedBorderColor = VecuColors.rx,
-                ),
-            )
-        }
     }
 }
 
@@ -192,23 +136,4 @@ private fun BitrateChip(text: String) {
         fontFamily = FontFamily.Monospace,
         color = Color(0xFF9FB0BC),
     )
-}
-
-@Composable
-private fun StatusDot(label: String, active: Boolean, detail: String) {
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Box(
-            Modifier
-                .size(10.dp)
-                .clip(CircleShape)
-                .background(if (active) VecuColors.ok else VecuColors.idle),
-        )
-        Text(
-            "$label: $detail",
-            fontSize = 12.sp,
-            fontFamily = FontFamily.Monospace,
-            color = Color(0xFFB6C0CA),
-            softWrap = false,
-        )
-    }
 }

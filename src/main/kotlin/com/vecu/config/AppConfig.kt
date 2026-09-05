@@ -14,7 +14,7 @@ object AppConfig {
      * by adding a profile here — no code change. Selectable from the toolbar.
      */
     val PROFILES = listOf(
-        EcuProfile("Vehicle", "config/vehicle.dbc", "config/vehicle.yml"),
+        EcuProfile("Vehicle", "config/vehicle.dbc", "config/vehicle.yml", icon = "car"),
         // One profile per ECU, so a vehicle is simulated by choosing which ECUs
         // are on the bus rather than by editing any one file:
         //   ICE  = Vehicle + Powertrain
@@ -22,20 +22,20 @@ object AppConfig {
         //   PHEV = Vehicle + Powertrain + Battery + Motor + Charging
         //   BEV  = Vehicle + Battery + Motor + Charging
         // Set PowertrainType in the Vehicle profile to match what you run.
-        EcuProfile("Powertrain", "config/powertrain.dbc", "config/powertrain.yml"),
-        EcuProfile("Battery", "config/battery.dbc", "config/battery.yml"),
-        EcuProfile("Motor", "config/motor.dbc", "config/motor.yml"),
-        EcuProfile("Charging", "config/charging.dbc", "config/charging.yml"),
+        EcuProfile("Powertrain", "config/powertrain.dbc", "config/powertrain.yml", icon = "gearbox"),
+        EcuProfile("Battery", "config/battery.dbc", "config/battery.yml", icon = "battery"),
+        EcuProfile("Motor", "config/motor.dbc", "config/motor.yml", icon = "chip"),
+        EcuProfile("Charging", "config/charging.dbc", "config/charging.yml", icon = "charger"),
         // Steering, Body and HVAC are on every vehicle whatever propels it, so
         // unlike the five above they are not part of the powertrain arithmetic.
-        EcuProfile("Steering", "config/steering.dbc", "config/steering.yml"),
-        EcuProfile("Body", "config/body.dbc", "config/body.yml"),
-        EcuProfile("HVAC", "config/hvac.dbc", "config/hvac.yml"),
+        EcuProfile("Steering", "config/steering.dbc", "config/steering.yml", icon = "wheel"),
+        EcuProfile("Body", "config/body.dbc", "config/body.yml", icon = "door"),
+        EcuProfile("HVAC", "config/hvac.dbc", "config/hvac.yml", icon = "climate"),
         // Steering-wheel controls. The one EVENT-shaped profile: its widgets
         // report gestures (press / long press / repeat / release) instead of
         // holding state, and its frame is sent per gesture step rather than
         // cyclically. See config/swc.yml.
-        EcuProfile("SWC", "config/swc.dbc", "config/swc.yml"),
+        EcuProfile("SWC", "config/swc.dbc", "config/swc.yml", icon = "button"),
     )
 
     /** Index into [PROFILES] loaded at startup. */

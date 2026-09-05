@@ -30,9 +30,14 @@ data class LogEntry(
 data class SimStatus(
     val connected: Boolean = false,
     val ecuRunning: Boolean = false,
-    /** Number of ECUs running concurrently on the shared bus. */
+    /** Number of ECUs loaded from PROFILES — all of them run at once. */
     val ecuCount: Int = 0,
+    /** How many of those actually transmitted recently. Reads 0 while stopped,
+     *  which is the point: "loaded" and "on the bus" are not the same claim. */
+    val activeEcus: Int = 0,
     val driverName: String = "",
     val ecuName: String = "",
     val lastError: String? = null,
+    /** Epoch ms of the last Start ECU; null while stopped. Drives the uptime clock. */
+    val ecuStartedAt: Long? = null,
 )
