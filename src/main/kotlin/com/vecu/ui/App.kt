@@ -60,6 +60,9 @@ fun App(vm: SimulatorViewModel) {
     var showProperties by remember { mutableStateOf(true) }
     var showCanMonitor by remember { mutableStateOf(true) }
     var showAppLog by remember { mutableStateOf(true) }
+    // Hoisted out of CanMonitor: AnimatedVisibility disposes the panel when it
+    // is collapsed, which would otherwise throw the filter away with it.
+    val canFilter = remember { CanFilterState() }
 
     VecuTheme {
         Column(Modifier.fillMaxSize().background(Background)) {
@@ -130,7 +133,7 @@ fun App(vm: SimulatorViewModel) {
                     Row(Modifier.fillMaxWidth().fillMaxHeight()) {
                         VDivider()
                         Box(Modifier.weight(1f).fillMaxHeight().background(PanelSurface)) {
-                            CanMonitor(canLog, onCollapse = { showCanMonitor = false })
+                            CanMonitor(canLog, canFilter, onCollapse = { showCanMonitor = false })
                         }
                     }
                 }

@@ -348,7 +348,7 @@ class SimulatorViewModel {
                 return
             }
         }
-        addCanRow(Direction.RX, frame, "(unknown)", emptyMap(), null)
+        addCanRow(Direction.RX, frame, "(unknown)", emptyMap(), null, unknown = true)
     }
 
     private fun onInstanceTx(inst: EcuInstance, frame: CanFrame, message: String, values: Map<String, Double>) {
@@ -364,6 +364,7 @@ class SimulatorViewModel {
         message: String,
         values: Map<String, Double>,
         ecu: String?,
+        unknown: Boolean = false,
     ) {
         val row = CanLogEntry(
             seq = seq.incrementAndGet(),
@@ -374,6 +375,7 @@ class SimulatorViewModel {
             dataHex = frame.hex(),
             decoded = values.entries.map { it.key to it.value },
             ecu = ecu,
+            unknown = unknown,
         )
         // Every ECU's TX, plus the RX thread, write here concurrently.
         synchronized(logLock) { _canLog.value = (_canLog.value + row).takeLast(AppConfig.MAX_LOG_ROWS) }

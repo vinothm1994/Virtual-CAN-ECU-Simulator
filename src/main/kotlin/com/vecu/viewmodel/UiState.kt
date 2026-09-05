@@ -14,6 +14,8 @@ data class CanLogEntry(
     val decoded: List<Pair<String, Double>>,
     /** Owning ECU (which profile's DBC matched); null for unknown frames. */
     val ecu: String? = null,
+    /** No profile's DBC decodes this id — what the monitor's Errors tab shows. */
+    val unknown: Boolean = false,
 )
 
 /** One row in the application log. */
