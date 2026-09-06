@@ -156,11 +156,11 @@ private fun MomentaryWidget(property: Property, onPress: () -> Unit, onRelease: 
             },
         contentAlignment = Alignment.Center,
     ) {
-        // The card header already carries the key's name, so the pad shows what
-        // it is DOING instead — which for a gesture key is the only interesting
-        // part, and makes "hold it to get a long press" discoverable.
+        // No "press · hold" caption here any more: it repeated on every key,
+        // and the panel says it once at the top instead. The fill colour is
+        // the feedback — a held key is lit, and that is the whole state.
         Text(
-            if (down) "HELD" else "press · hold",
+            property.title,
             fontSize = 14.sp,
             fontWeight = FontWeight.SemiBold,
             color = if (down) Color(0xFF10161C) else Color(0xFF8E9BA8),

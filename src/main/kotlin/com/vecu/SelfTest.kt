@@ -1,11 +1,13 @@
 package com.vecu
 
 import com.vecu.config.AppConfig
+import com.vecu.core.config.GroupLayout
 import com.vecu.core.config.SimConfig
 import com.vecu.core.ecu.EcuInstance
 import com.vecu.core.ecu.VirtualEcu
 import com.vecu.core.property.GesturePhase
 import com.vecu.core.property.PropertyManager
+import com.vecu.core.property.WidgetType
 import com.vecu.core.rule.RuleEngine
 import com.vecu.dbc.DbcService
 import kotlinx.coroutines.CoroutineScope
@@ -34,7 +36,41 @@ fun main() {
             d.schema.messages.isNotEmpty() && props.isNotEmpty(),
             "${d.schema.messages.size} msgs, ${props.size} widgets",
         )
+        // A group naming a widget that does not exist would drop the key from
+        // the panel silently, so SimConfig.load rejects it; prove that here as
+        // well as proving the real profiles are consistent.
+        val ids = c.widgets.map { it.id }.toSet()
+        check(
+            "Profile '${p.name}' groups resolve",
+            c.groups.all { g -> g.widgetIds.all { it in ids } },
+            if (c.groups.isEmpty()) "no groups" else "${c.groups.size} groups",
+        )
         d.close()
+    }
+
+    // The layout the SWC panel is built from: a D-pad with its five slots, and
+    // every momentary key placed in exactly one group.
+    run {
+        val swc = SimConfig.load(AppConfig.PROFILES.first { it.name == "SWC" }.yaml)
+        val dpad = swc.groups.firstOrNull { it.layout == GroupLayout.DPAD }
+        check(
+            "SWC declares a D-pad with five slots",
+            dpad != null && dpad.slots.keys == setOf("up", "left", "center", "right", "down"),
+            dpad?.slots?.keys?.joinToString().orEmpty(),
+        )
+        val keys = swc.widgets.filter { it.widget == WidgetType.MOMENTARY }.map { it.id }.toSet()
+        val placed = swc.groups.flatMap { it.widgetIds }.toSet()
+        check(
+            "Every SWC key is in exactly one group",
+            placed == keys,
+            "${placed.size} placed of ${keys.size} keys",
+        )
+        // A key with no glyph falls back to its title, which is fine — but a
+        // token that no table entry matches is a silent typo, so pin the set.
+        check(
+            "SWC keys name a glyph (except OK, which shows its title)",
+            swc.widgets.filter { it.widget == WidgetType.MOMENTARY && it.icon == null }.map { it.id } == listOf("ok"),
+        )
     }
 
     // Multi-ECU routing: concurrent instances each handle only their own DBC's

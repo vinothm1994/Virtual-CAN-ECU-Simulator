@@ -64,6 +64,10 @@ data class Property(
     val unit: String,
     val options: List<EnumOption>,
     val snapZero: Boolean = false,
+    /** Glyph token for the button face; null renders the title instead. */
+    val icon: String? = null,
+    /** Colour role for the face: "ok" | "warn" | "error"; null = neutral. */
+    val accent: String? = null,
 
     // --- MOMENTARY only. Empty/null for every other widget kind. ---
     /** DBC message fired once per gesture step (e.g. "SteeringWheelEvent"). */

@@ -6,6 +6,7 @@ import androidx.compose.animation.expandVertically
 import androidx.compose.animation.shrinkHorizontally
 import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
@@ -16,7 +17,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.lazy.grid.GridCells
+import androidx.compose.foundation.lazy.grid.GridItemSpan
 import androidx.compose.foundation.lazy.grid.LazyVerticalGrid
 import androidx.compose.foundation.lazy.grid.items
 import androidx.compose.material.icons.Icons
@@ -37,6 +41,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.vecu.core.property.WidgetType
 import com.vecu.viewmodel.SimulatorViewModel
 
 private val Background = Color(0xFF101418)
@@ -45,6 +50,7 @@ private val DividerColor = Color(0xFF0B0E11)
 private val ErrorBannerBg = Color(0xFF3A1A1A)
 
 /** Root layout: toolbar, three panels (properties / dynamic UI / CAN monitor), log. */
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun App(vm: SimulatorViewModel) {
     val status by vm.status.collectAsState()
@@ -54,6 +60,7 @@ fun App(vm: SimulatorViewModel) {
     val bitrateDisplay by vm.bitrateDisplay.collectAsState()
     val interfaces = remember { vm.availableInterfaces() }
     val properties by vm.properties.collectAsState()
+    val widgetGroups by vm.widgetGroups.collectAsState()
     val values by vm.signalValues.collectAsState()
     val canLog by vm.canLog.collectAsState()
     val appLog by vm.appLog.collectAsState()
@@ -134,11 +141,40 @@ fun App(vm: SimulatorViewModel) {
                 }
                 Column(Modifier.weight(2.3f).fillMaxHeight()) {
                     PanelHeader("Dynamic UI · ${status.ecuName} ECU")
+                    val groups = widgetGroups
+                    val byId = remember(properties) { properties.associateBy { it.id } }
+                    val grouped = remember(groups) { groups.flatMap { it.widgetIds }.toSet() }
+                    val loose = remember(properties, grouped) { properties.filter { it.id !in grouped } }
+                    if (properties.any { it.widget == WidgetType.MOMENTARY }) {
+                        // Said once, here, instead of on every key.
+                        GestureHint()
+                    }
                     LazyVerticalGrid(
                         columns = GridCells.Adaptive(230.dp),
                         modifier = Modifier.fillMaxSize().padding(6.dp),
                     ) {
-                        items(properties, key = { it.id }) { p ->
+                        if (groups.isNotEmpty()) {
+                            // One grid slot holding a flow of group blocks: they
+                            // size to their contents, so two sit side by side
+                            // when the panel is wide enough and stack when not.
+                            item(span = { GridItemSpan(maxLineSpan) }) {
+                                FlowRow(
+                                    Modifier.fillMaxWidth().padding(6.dp),
+                                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                                ) {
+                                    groups.forEach { group ->
+                                        WidgetGroup(
+                                            group = group,
+                                            properties = byId,
+                                            onPress = { p -> vm.onWidgetPress(p) },
+                                            onRelease = { p -> vm.onWidgetRelease(p) },
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                        items(loose, key = { it.id }) { p ->
                             DynamicWidget(
                                 p,
                                 values,
@@ -187,6 +223,17 @@ fun App(vm: SimulatorViewModel) {
             )
         }
     }
+}
+
+/** How a momentary key is worked, stated once for the whole panel. */
+@Composable
+private fun GestureHint() {
+    Text(
+        "Click a key to send PRESSED · hold it for LONG_PRESSED, then REPEAT · releasing sends RELEASED",
+        fontSize = 11.sp,
+        color = Color(0xFF7A8792),
+        modifier = Modifier.padding(horizontal = 12.dp, vertical = 4.dp),
+    )
 }
 
 @Composable

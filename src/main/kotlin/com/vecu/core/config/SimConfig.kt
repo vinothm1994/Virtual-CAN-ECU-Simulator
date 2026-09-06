@@ -16,6 +16,12 @@ data class WidgetSpec(
     val step: Double?,
     val snapZero: Boolean = false,
 
+    /** Glyph token for the button face (see the table in ui/DynamicUi.kt).
+     *  Unset or unrecognised falls back to the title text. */
+    val icon: String? = null,
+    /** Colour role for the face: "ok" | "warn" | "error". Unset = neutral. */
+    val accent: String? = null,
+
     // --- momentary (event) widgets only ---
     /** DBC message fired once per gesture step. */
     val event: String? = null,
@@ -73,11 +79,52 @@ data class GestureSpec(
     val repeatMs: Long = 150,
 )
 
+/** How a [GroupSpec] arranges its members. */
+enum class GroupLayout {
+    /** Members flow left to right at a fixed column count. */
+    GRID,
+
+    /** The five positional slots of a directional pad: up / left / center /
+     *  right / down, placed in a 3x3 with empty corners. */
+    DPAD,
+    ;
+
+    companion object {
+        fun from(name: String): GroupLayout =
+            entries.firstOrNull { it.name.equals(name, ignoreCase = true) } ?: GRID
+    }
+}
+
+/**
+ * A visual grouping of widgets, drawn as one bordered block.
+ *
+ * The flat `ui:` list is reading order; a group is a shape. A D-pad is not five
+ * buttons in a row — it is a cross, and recognising it at a glance is the whole
+ * point of a steering-wheel panel. Widgets not named by any group keep flowing
+ * in the adaptive grid exactly as before, so this is additive: a profile that
+ * declares no groups renders as it always did.
+ */
+data class GroupSpec(
+    val id: String,
+    val title: String?,
+    val layout: GroupLayout,
+    /** GRID only: how many keys per row. */
+    val columns: Int,
+    /** GRID: members in order. DPAD: empty (see [slots]). */
+    val members: List<String>,
+    /** DPAD: slot name ("up", "left", "center", "right", "down") -> widget id. */
+    val slots: Map<String, String>,
+) {
+    /** Every widget id this group claims, whatever the layout. */
+    val widgetIds: List<String> get() = if (layout == GroupLayout.DPAD) slots.values.toList() else members
+}
+
 /** The whole YAML config: what to show, how the ECU behaves, what it transmits. */
 data class SimConfig(
     val ecuName: String,
     val defaults: Map<String, Double>,
     val widgets: List<WidgetSpec>,
+    val groups: List<GroupSpec>,
     val rules: List<RuleSpec>,
     val tx: List<TxSpec>,
     val gesture: GestureSpec = GestureSpec(),
@@ -104,6 +151,8 @@ data class SimConfig(
                     max = w["max"].dbl(),
                     step = w["step"].dbl(),
                     snapZero = w["snap_zero"] as? Boolean ?: false,
+                    icon = w["icon"] as? String,
+                    accent = w["accent"] as? String,
                     event = w["event"] as? String,
                     phase = w["phase"] as? String,
                     // Left as written: a VAL_ label needs the DBC to resolve,
@@ -111,6 +160,36 @@ data class SimConfig(
                     set = (w["set"] as? Map<Any?, Any?> ?: emptyMap())
                         .entries.associate { it.key.toString() to it.value.toString() },
                 )
+            }
+
+            val groups = (root["groups"] as? List<Map<String, Any?>> ?: emptyList()).map { g ->
+                val layout = GroupLayout.from(g["layout"].str("grid"))
+                GroupSpec(
+                    id = g["id"].str(),
+                    title = g["title"] as? String,
+                    layout = layout,
+                    columns = (g["columns"] as? Number)?.toInt() ?: 3,
+                    members = when (layout) {
+                        GroupLayout.GRID -> (g["members"] as? List<*>).orEmpty().map { it.toString() }
+                        GroupLayout.DPAD -> emptyList()
+                    },
+                    slots = when (layout) {
+                        GroupLayout.DPAD -> (g["members"] as? Map<Any?, Any?> ?: emptyMap())
+                            .entries.associate { it.key.toString() to it.value.toString() }
+                        GroupLayout.GRID -> emptyMap()
+                    },
+                )
+            }
+            // A group naming a widget that does not exist would silently drop
+            // the key from the panel, which is the same class of mistake a
+            // mistyped VAL_ label makes — so it fails at load, like that one.
+            val widgetIds = widgets.map { it.id }.toSet()
+            val claimed = HashSet<String>()
+            groups.forEach { group ->
+                group.widgetIds.forEach { id ->
+                    require(id in widgetIds) { "group '${group.id}' names unknown widget '$id' in $path" }
+                    require(claimed.add(id)) { "widget '$id' is in more than one group in $path" }
+                }
             }
 
             val rules = (root["rules"] as? List<Map<String, Any?>> ?: emptyList()).map { r ->
@@ -145,6 +224,7 @@ data class SimConfig(
                 ecuName = ecu["name"].str("ECU"),
                 defaults = defaults,
                 widgets = widgets,
+                groups = groups,
                 rules = rules,
                 tx = tx,
                 gesture = gesture,

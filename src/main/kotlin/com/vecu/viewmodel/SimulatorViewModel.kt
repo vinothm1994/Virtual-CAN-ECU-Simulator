@@ -9,6 +9,7 @@ import com.vecu.can.TcpCanDriver
 import com.vecu.config.AppConfig
 import com.vecu.config.EcuProfile
 import com.vecu.core.config.GestureSpec
+import com.vecu.core.config.GroupSpec
 import com.vecu.core.ecu.EcuInstance
 import com.vecu.core.ecu.GestureDriver
 import com.vecu.core.property.GesturePhase
@@ -55,6 +56,11 @@ class SimulatorViewModel {
     // --- observable state ---
     private val _properties = MutableStateFlow<List<Property>>(emptyList())
     val properties: StateFlow<List<Property>> = _properties
+
+    /** Layout groups declared by the viewed profile; empty for profiles that
+     *  declare none, which is every one but SWC today. */
+    private val _widgetGroups = MutableStateFlow<List<GroupSpec>>(emptyList())
+    val widgetGroups: StateFlow<List<GroupSpec>> = _widgetGroups
 
     private val _signalValues = MutableStateFlow<Map<String, Double>>(emptyMap())
     val signalValues: StateFlow<Map<String, Double>> = _signalValues
@@ -212,6 +218,7 @@ class SimulatorViewModel {
 
     private fun showActive() {
         _properties.value = activeInstance.properties
+        _widgetGroups.value = activeInstance.config.groups
         _activeProfile.value = activeInstance.profile
         stateCollectJob?.cancel()
         // collect() emits the current value immediately, so the view updates at once.

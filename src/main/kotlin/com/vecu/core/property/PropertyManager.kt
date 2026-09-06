@@ -38,6 +38,8 @@ object PropertyManager {
             unit = sig?.unit.orEmpty(),
             options = options,
             snapZero = spec.snapZero,
+            icon = spec.icon,
+            accent = spec.accent,
             eventMessage = spec.event,
             eventSignals = spec.set.mapValues { (signal, written) ->
                 resolveValue(signal, written, schema)
