@@ -51,16 +51,23 @@ fun FrameWindowScope.TitleBar(title: String, state: WindowState, onClose: () -> 
                 Text(title, color = Color(0xFFE2E6EA), fontSize = 13.sp, fontWeight = FontWeight.Medium)
             }
         }
-        TitleBarButton(Icons.Filled.HorizontalRule, "Minimize") { state.isMinimized = true }
-        TitleBarButton(
-            icon = if (state.placement == WindowPlacement.Maximized) Icons.Filled.FilterNone else Icons.Filled.CropSquare,
-            label = "Maximize",
-        ) {
-            state.placement =
-                if (state.placement == WindowPlacement.Maximized) WindowPlacement.Floating else WindowPlacement.Maximized
-        }
-        TitleBarButton(Icons.Filled.Close, "Close", danger = true, onClick = onClose)
+        WindowButtons(state, onClose)
     }
+}
+
+/** Minimize / maximize / close. Shared with [AppHeader], which puts them in
+ *  the same band as the app's own controls. */
+@Composable
+internal fun WindowButtons(state: WindowState, onClose: () -> Unit) {
+    TitleBarButton(Icons.Filled.HorizontalRule, "Minimize") { state.isMinimized = true }
+    TitleBarButton(
+        icon = if (state.placement == WindowPlacement.Maximized) Icons.Filled.FilterNone else Icons.Filled.CropSquare,
+        label = "Maximize",
+    ) {
+        state.placement =
+            if (state.placement == WindowPlacement.Maximized) WindowPlacement.Floating else WindowPlacement.Maximized
+    }
+    TitleBarButton(Icons.Filled.Close, "Close", danger = true, onClick = onClose)
 }
 
 @Composable
@@ -74,8 +81,8 @@ private fun TitleBarButton(icon: ImageVector, label: String, danger: Boolean = f
     }
     Box(
         modifier = Modifier
-            .width(46.dp)
-            .fillMaxHeight()
+            .width(44.dp)
+            .height(26.dp)
             .hoverable(interaction)
             .clickable(interactionSource = interaction, indication = null, onClick = onClick)
             .background(bg),

@@ -72,24 +72,6 @@ fun App(vm: SimulatorViewModel) {
 
     VecuTheme {
         Column(Modifier.fillMaxSize().background(Background)) {
-            Toolbar(
-                status = status,
-                interfaces = interfaces,
-                canInterface = canInterface,
-                onSelectInterface = vm::setInterface,
-                baudrate = canBaudrate,
-                baudrates = vm.baudrateOptions,
-                onSelectBaudrate = vm::setBaudrate,
-                bitrateEditable = vm.bitrateEditable,
-                bitrateDisplay = bitrateDisplay,
-                busEditable = !status.connected,
-                onConnect = vm::connect,
-                onDisconnect = vm::disconnect,
-                onStart = vm::startEcu,
-                onStop = vm::stopEcu,
-                onClear = vm::clearLog,
-            )
-
             status.lastError?.let { err ->
                 Box(Modifier.fillMaxWidth().background(ErrorBannerBg).padding(horizontal = 12.dp, vertical = 6.dp)) {
                     Text("⚠ $err", color = VecuColors.error, fontSize = 12.sp)

@@ -9,7 +9,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Window
 import androidx.compose.ui.window.application
 import androidx.compose.ui.window.rememberWindowState
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import com.vecu.ui.App
+import com.vecu.ui.AppHeader
 import com.vecu.ui.ErrorScreen
 import com.vecu.ui.TitleBar
 import com.vecu.viewmodel.SimulatorViewModel
@@ -43,7 +46,35 @@ fun main() = application {
         undecorated = true,
     ) {
         Column(Modifier.fillMaxSize()) {
-            TitleBar("Virtual CAN ECU Simulator", windowState, onClose = ::exitApplication)
+            if (vm != null) {
+                // The header owns the window chrome as well as Connect/Start/Clear,
+                // so it is built here where the window scope is.
+                val status by vm.status.collectAsState()
+                val canInterface by vm.canInterface.collectAsState()
+                val canBaudrate by vm.canBaudrate.collectAsState()
+                val bitrateDisplay by vm.bitrateDisplay.collectAsState()
+                val interfaces = remember { vm.availableInterfaces() }
+                AppHeader(
+                    status = status,
+                    state = windowState,
+                    interfaces = interfaces,
+                    canInterface = canInterface,
+                    onSelectInterface = vm::setInterface,
+                    baudrate = canBaudrate,
+                    baudrates = vm.baudrateOptions,
+                    onSelectBaudrate = vm::setBaudrate,
+                    bitrateEditable = vm.bitrateEditable,
+                    bitrateDisplay = bitrateDisplay,
+                    onConnect = vm::connect,
+                    onDisconnect = vm::disconnect,
+                    onStart = vm::startEcu,
+                    onStop = vm::stopEcu,
+                    onClear = vm::clearLog,
+                    onClose = ::exitApplication,
+                )
+            } else {
+                TitleBar("Virtual CAN ECU Simulator", windowState, onClose = ::exitApplication)
+            }
             Box(Modifier.weight(1f).fillMaxSize()) {
                 if (vm != null) {
                     App(vm)
