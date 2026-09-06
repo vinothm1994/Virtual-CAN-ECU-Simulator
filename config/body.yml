@@ -42,16 +42,16 @@ defaults:
 ui:
   # --- Openings. Switches, because a courtesy switch is a shut/ajar sensor and
   # reports nothing in between.
-  - { id: doorFL,   title: Door FL Open,  widget: switch, request: DoorOpenDriver,    feedback: DoorOpenDriver }
-  - { id: doorFR,   title: Door FR Open,  widget: switch, request: DoorOpenPassenger, feedback: DoorOpenPassenger }
-  - { id: doorRL,   title: Door RL Open,  widget: switch, request: DoorOpenRearLeft,  feedback: DoorOpenRearLeft }
-  - { id: doorRR,   title: Door RR Open,  widget: switch, request: DoorOpenRearRight, feedback: DoorOpenRearRight }
-  - { id: hood,     title: Hood Open,     widget: switch, request: HoodOpen,          feedback: HoodOpen }
-  - { id: trunk,    title: Trunk Open,    widget: switch, request: TrunkOpen,         feedback: TrunkOpen }
+  - { id: doorFL,   title: Door FL Open,  widget: toggle, icon: door, request: DoorOpenDriver,    feedback: DoorOpenDriver }
+  - { id: doorFR,   title: Door FR Open,  widget: toggle, icon: door, request: DoorOpenPassenger, feedback: DoorOpenPassenger }
+  - { id: doorRL,   title: Door RL Open,  widget: toggle, icon: door, request: DoorOpenRearLeft,  feedback: DoorOpenRearLeft }
+  - { id: doorRR,   title: Door RR Open,  widget: toggle, icon: door, request: DoorOpenRearRight, feedback: DoorOpenRearRight }
+  - { id: hood,     title: Hood Open,     widget: toggle, icon: hood, request: HoodOpen,          feedback: HoodOpen }
+  - { id: trunk,    title: Trunk Open,    widget: toggle, icon: trunk, request: TrunkOpen,         feedback: TrunkOpen }
 
   # --- Locks (front only; the DBC has no rear lock signals).
-  - { id: lockFL,   title: Door FL Locked, widget: switch, request: DoorLockDriver,    feedback: DoorLockDriver }
-  - { id: lockFR,   title: Door FR Locked, widget: switch, request: DoorLockPassenger, feedback: DoorLockPassenger }
+  - { id: lockFL,   title: Door FL Locked, widget: toggle, icon: lock, request: DoorLockDriver,    feedback: DoorLockDriver }
+  - { id: lockFR,   title: Door FR Locked, widget: toggle, icon: lock, request: DoorLockPassenger, feedback: DoorLockPassenger }
 
   # --- Glass, as a percentage open.
   - { id: winFL,    title: Window FL %,   widget: slider, min: 0, max: 100, step: 1, request: WindowPosDriver,    feedback: WindowPosDriver }
@@ -63,11 +63,11 @@ ui:
   # --- Lamps. Both headlight signals are exposed: switching the switch to `on`
   # is what drives HeadlightActive (see rules), but `auto` leaves the lamps to
   # the ECU, which is exactly the case a consumer must not get wrong.
-  - { id: hlSwitch, title: Headlight Switch, widget: dropdown, request: HeadlightState,  feedback: HeadlightState }
-  - { id: hlActive, title: Headlights Lit,   widget: switch,   request: HeadlightActive, feedback: HeadlightActive }
-  - { id: tailLamp, title: Tail Lamps Lit,   widget: switch,   request: TailLightActive, feedback: TailLightActive }
-  - { id: hazard,   title: Hazard,           widget: switch,   request: HazardState,     feedback: HazardState }
-  - { id: wiper,    title: Wipers,           widget: dropdown, request: WiperState,      feedback: WiperState }
+  - { id: hlSwitch, title: Headlight Switch, widget: segmented, request: HeadlightState,  feedback: HeadlightState }
+  - { id: hlActive, title: Headlights Lit,   widget: toggle, icon: headlight, request: HeadlightActive, feedback: HeadlightActive }
+  - { id: tailLamp, title: Tail Lamps Lit,   widget: toggle, icon: lamp, request: TailLightActive, feedback: TailLightActive }
+  - { id: hazard,   title: Hazard,           widget: toggle, icon: hazard, request: HazardState,     feedback: HazardState }
+  - { id: wiper,    title: Wipers,           widget: segmented, request: WiperState,      feedback: WiperState }
 
   # --- Tire pressures. Range spans a flat tyre to an over-inflated one so the
   # low-pressure warning can actually be exercised.
@@ -75,6 +75,50 @@ ui:
   - { id: tyreFR,   title: Tyre FR (kPa), widget: slider, min: 0, max: 400, step: 5, request: TirePressureFrontRight, feedback: TirePressureFrontRight }
   - { id: tyreRL,   title: Tyre RL (kPa), widget: slider, min: 0, max: 400, step: 5, request: TirePressureRearLeft,   feedback: TirePressureRearLeft }
   - { id: tyreRR,   title: Tyre RR (kPa), widget: slider, min: 0, max: 400, step: 5, request: TirePressureRearRight,  feedback: TirePressureRearRight }
+
+# ---- Panel layout. The `ui:` comments above already grouped these by what
+# they are; this makes that structure the layout rather than a note about it.
+groups:
+  # Ajar sensors: lit means open. Four doors in a row, then the two lids.
+  - id: openings
+    title: Openings
+    layout: grid
+    columns: 3
+    members: [doorFL, doorFR, doorRL, doorRR, hood, trunk]
+
+  # Front only — the DBC has no rear lock signals, and inventing them here
+  # would put a state on the bench that no consumer will ever see.
+  - id: locks
+    title: Locks
+    layout: grid
+    columns: 2
+    members: [lockFL, lockFR]
+
+  - id: lamps
+    title: Lighting
+    layout: grid
+    columns: 3
+    members: [hlActive, tailLamp, hazard]
+
+  # The two stalks: every position visible, because which one is selected is
+  # the point — `auto` in particular leaves the lamps to the ECU.
+  - id: stalks
+    title: Stalks
+    layout: stack
+    columns: 1
+    members: [hlSwitch, wiper]
+
+  - id: glass
+    title: Glass
+    layout: stack
+    columns: 2
+    members: [winFL, winFR, winRL, winRR, sunroof]
+
+  - id: tyres
+    title: Tyre Pressure
+    layout: stack
+    columns: 2
+    members: [tyreFL, tyreFR, tyreRL, tyreRR]
 
 rules:
   # Tail lamps follow the headlights: on a real car they are the same stalk.

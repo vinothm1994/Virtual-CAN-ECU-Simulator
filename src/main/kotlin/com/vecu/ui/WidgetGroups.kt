@@ -22,7 +22,13 @@ import androidx.compose.material.icons.filled.AcUnit
 import androidx.compose.material.icons.filled.AutoMode
 import androidx.compose.material.icons.filled.Autorenew
 import androidx.compose.material.icons.filled.CallEnd
+import androidx.compose.material.icons.filled.CarRepair
 import androidx.compose.material.icons.filled.Cyclone
+import androidx.compose.material.icons.filled.Highlight
+import androidx.compose.material.icons.filled.Lightbulb
+import androidx.compose.material.icons.filled.Lock
+import androidx.compose.material.icons.filled.Luggage
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.PowerSettingsNew
 import androidx.compose.material.icons.filled.VerticalSplit
 import androidx.compose.material.icons.filled.Waves
@@ -35,6 +41,7 @@ import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.Mic
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.SkipNext
+import androidx.compose.material.icons.filled.SensorDoor
 import androidx.compose.material.icons.filled.SkipPrevious
 import androidx.compose.material.icons.filled.Visibility
 import androidx.compose.material.icons.filled.VolumeDown
@@ -110,6 +117,15 @@ private val KeyIcons: Map<String, ImageVector> = mapOf(
     // Material has no windscreen-defrost glyph; the key's own label carries the
     // meaning and this reads as heat on glass.
     "defrost" to Icons.Filled.Waves,
+
+    // --- body keys ---
+    "door" to Icons.Filled.SensorDoor,
+    "hood" to Icons.Filled.CarRepair,
+    "trunk" to Icons.Filled.Luggage,
+    "lock" to Icons.Filled.Lock,
+    "headlight" to Icons.Filled.Highlight,
+    "lamp" to Icons.Filled.Lightbulb,
+    "hazard" to Icons.Filled.Warning,
 )
 
 private fun accentColor(token: String?): Color? = when (token) {

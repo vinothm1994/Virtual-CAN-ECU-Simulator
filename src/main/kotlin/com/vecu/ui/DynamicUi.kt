@@ -480,10 +480,20 @@ internal fun segmentsOf(property: Property): List<com.vecu.core.property.EnumOpt
  */
 private fun shortLabel(label: String): String {
     val parts = label.split('_').filter { it != "and" }
+    val full = parts.joinToString("+").uppercase()
+    // Whole words wherever they fit the segment: HIGH+BEAM and FACE+FLOOR read
+    // as themselves, and only the ones that genuinely overflow get shortened.
+    if (full.length <= MAX_SEGMENT_CHARS) return full
+    // A single long word gets cut short rather than to the segment's limit:
+    // "INTER" reads as intermittent, "INTERMITTE" reads as a rendering fault.
     if (parts.size == 1) return parts[0].take(5).uppercase()
-    // A compound direction gets its first word and an initial for the rest:
-    // face_and_floor -> FACE+FL. Spelling both out does not fit and truncating
-    // evenly ("FACE+FLOO") loses the part that distinguishes it.
+    // defrost_and_floor -> DEFR+FL: keep the word that distinguishes it and
+    // initial the rest, rather than truncating both evenly into mush.
     return parts.first().take(4).uppercase() +
         parts.drop(1).joinToString("") { "+" + it.take(2).uppercase() }
 }
+
+/** What a segment actually fits at three per row — measured, not guessed:
+ *  ten characters ellipsised, and an ellipsis reads worse than an
+ *  abbreviation that was chosen on purpose. */
+private const val MAX_SEGMENT_CHARS = 8
