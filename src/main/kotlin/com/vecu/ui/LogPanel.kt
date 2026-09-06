@@ -45,7 +45,7 @@ fun LogPanel(entries: List<LogEntry>, onCollapse: () -> Unit) {
     }
 }
 
-private fun levelColor(level: String): Color = when (level) {
+internal fun levelColor(level: String): Color = when (level) {
     "ERROR" -> VecuColors.error
     "WARN" -> VecuColors.warn
     "DEBUG" -> Color(0xFF7A8792)

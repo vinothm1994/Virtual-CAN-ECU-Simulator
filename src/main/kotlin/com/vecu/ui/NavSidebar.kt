@@ -83,8 +83,8 @@ private val EcuIcons: Map<String, ImageVector> = mapOf(
 
 private val DefaultEcuIcon = Icons.Filled.DeveloperBoard
 
-/** The non-ECU destinations. Inert until each screen exists (phase 2). */
-private enum class NavScreen(val label: String, val icon: ImageVector) {
+/** The non-ECU destinations. Selecting an ECU returns to the ECU view. */
+enum class NavScreen(val label: String, val icon: ImageVector) {
     DIAGNOSTICS("Diagnostics", Icons.Filled.Analytics),
     LOGS("Logs", Icons.Filled.Article),
     SETTINGS("Settings", Icons.Filled.Settings),
@@ -107,6 +107,9 @@ fun NavSidebar(
     activeProfile: String,
     onSelectProfile: (String) -> Unit,
     status: SimStatus,
+    /** Which screen is showing; null = the ECU view. */
+    activeScreen: NavScreen?,
+    onSelectScreen: (NavScreen) -> Unit,
     canInterface: String,
     expanded: Boolean,
     onToggleExpanded: () -> Unit,
@@ -129,7 +132,7 @@ fun NavSidebar(
                 NavItem(
                     icon = p.icon?.let { EcuIcons[it] } ?: DefaultEcuIcon,
                     label = p.name,
-                    selected = p.name == activeProfile,
+                    selected = activeScreen == null && p.name == activeProfile,
                     expanded = expanded,
                     onClick = { onSelectProfile(p.name) },
                 )
@@ -143,10 +146,9 @@ fun NavSidebar(
             NavItem(
                 icon = screen.icon,
                 label = screen.label,
-                selected = false,
+                selected = screen == activeScreen,
                 expanded = expanded,
-                enabled = false,
-                onClick = {},
+                onClick = { onSelectScreen(screen) },
             )
         }
         Spacer(Modifier.height(2.dp))

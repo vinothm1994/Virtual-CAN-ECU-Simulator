@@ -60,6 +60,10 @@ fun App(vm: SimulatorViewModel) {
 
     var showProperties by remember { mutableStateOf(true) }
     var navExpanded by remember { mutableStateOf(true) }
+    // null = the ECU view (properties + widgets + monitor). Picking an ECU in
+    // the sidebar comes back here, which is why selecting one clears this.
+    var screen by remember { mutableStateOf<NavScreen?>(null) }
+    val logFilter = remember { LogFilterState() }
     var showCanMonitor by remember { mutableStateOf(true) }
     var showAppLog by remember { mutableStateOf(true) }
     // Hoisted out of CanMonitor: AnimatedVisibility disposes the panel when it
@@ -103,8 +107,13 @@ fun App(vm: SimulatorViewModel) {
                 NavSidebar(
                     profiles = vm.profiles,
                     activeProfile = activeProfile.name,
-                    onSelectProfile = vm::selectProfile,
+                    onSelectProfile = { name ->
+                        screen = null
+                        vm.selectProfile(name)
+                    },
                     status = status,
+                    activeScreen = screen,
+                    onSelectScreen = { screen = if (screen == it) null else it },
                     canInterface = canInterface,
                     expanded = navExpanded,
                     onToggleExpanded = { navExpanded = !navExpanded },
@@ -112,6 +121,27 @@ fun App(vm: SimulatorViewModel) {
                     onToggleProperties = { showProperties = !showProperties },
                 )
                 VDivider()
+                if (screen != null) {
+                    Box(Modifier.weight(1f).fillMaxHeight().background(PanelSurface)) {
+                        when (screen) {
+                            NavScreen.DIAGNOSTICS -> DiagnosticsScreen(canLog, status, vm.ecuInfo)
+                            NavScreen.LOGS -> LogsScreen(appLog, logFilter)
+                            NavScreen.SETTINGS -> SettingsScreen(
+                                status = status,
+                                interfaces = interfaces,
+                                canInterface = canInterface,
+                                onSelectInterface = vm::setInterface,
+                                baudrate = canBaudrate,
+                                baudrates = vm.baudrateOptions,
+                                onSelectBaudrate = vm::setBaudrate,
+                                bitrateEditable = vm.bitrateEditable,
+                                bitrateDisplay = bitrateDisplay,
+                                ecus = vm.ecuInfo,
+                            )
+                            null -> Unit
+                        }
+                    }
+                } else {
                 AnimatedVisibility(visible = showProperties, enter = expandHorizontally(), exit = shrinkHorizontally()) {
                     Row {
                         Box(Modifier.width(250.dp).fillMaxHeight().background(PanelSurface)) {
@@ -155,6 +185,7 @@ fun App(vm: SimulatorViewModel) {
                     checked = showCanMonitor,
                     onClick = { showCanMonitor = !showCanMonitor },
                 )
+                }
                 }
             }
 

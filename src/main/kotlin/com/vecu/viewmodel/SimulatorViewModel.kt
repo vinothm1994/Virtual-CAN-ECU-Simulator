@@ -105,6 +105,24 @@ class SimulatorViewModel {
      *  connect() froze the label on "(waiting)" even while frames were flowing. */
     private var driverNameJob: Job? = null
 
+    /** Loaded-ECU snapshot for the Settings and Diagnostics screens. Built once:
+     *  DBC and YAML are read at startup and never reloaded. */
+    val ecuInfo: List<EcuInfo> by lazy {
+        instances.map { inst ->
+            EcuInfo(
+                name = inst.name,
+                dbc = inst.profile.dbc,
+                yaml = inst.profile.yaml,
+                messages = inst.messageCount,
+                widgets = inst.properties.size,
+                eventWidgets = inst.properties.count { it.eventMessage != null },
+                longPressMs = inst.gesture.longPressMs,
+                repeatMs = inst.gesture.repeatMs,
+                tx = inst.config.tx.map { TxInfo(it.message, it.periodMs, it.onChange) },
+            )
+        }
+    }
+
     /** Last transmit per ECU, written from every instance's TX thread. Feeds the
      *  sidebar's "active" count, which is about what is on the bus rather than
      *  what is loaded — an ECU whose tx: is empty (SWC until you press a key)
@@ -400,6 +418,7 @@ class SimulatorViewModel {
             dataHex = frame.hex(),
             decoded = values.entries.map { it.key to it.value },
             ecu = ecu,
+            atMs = System.currentTimeMillis(),
             unknown = unknown,
         )
         // Every ECU's TX, plus the RX thread, write here concurrently.
