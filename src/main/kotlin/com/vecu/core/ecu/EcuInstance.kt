@@ -33,7 +33,7 @@ class EcuInstance(
 ) {
     val dbc: DbcService = DbcService().apply { load(AppConfig.resolvePath(profile.dbc)) }
     val config: SimConfig = SimConfig.load(AppConfig.resolvePath(profile.yaml))
-    val properties: List<Property> = PropertyManager.build(config.widgets, dbc.schema)
+    val properties: List<Property> = PropertyManager.build(config.widgets, dbc.schema, config.rules)
     /** Gesture timing for this ECU's momentary keys (YAML `gesture:` block). */
     val gesture: GestureSpec get() = config.gesture
     val name: String get() = config.ecuName

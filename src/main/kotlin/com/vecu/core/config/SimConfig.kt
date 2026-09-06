@@ -87,6 +87,10 @@ enum class GroupLayout {
     /** The five positional slots of a directional pad: up / left / center /
      *  right / down, placed in a 3x3 with empty corners. */
     DPAD,
+
+    /** Members render as their ordinary controls, stacked inside one card.
+     *  [GRID] draws key faces; a switch or a slider needs its own widget. */
+    STACK,
     ;
 
     companion object {
@@ -170,13 +174,14 @@ data class SimConfig(
                     layout = layout,
                     columns = (g["columns"] as? Number)?.toInt() ?: 3,
                     members = when (layout) {
-                        GroupLayout.GRID -> (g["members"] as? List<*>).orEmpty().map { it.toString() }
+                        GroupLayout.GRID, GroupLayout.STACK ->
+                            (g["members"] as? List<*>).orEmpty().map { it.toString() }
                         GroupLayout.DPAD -> emptyList()
                     },
                     slots = when (layout) {
                         GroupLayout.DPAD -> (g["members"] as? Map<Any?, Any?> ?: emptyMap())
                             .entries.associate { it.key.toString() to it.value.toString() }
-                        GroupLayout.GRID -> emptyMap()
+                        GroupLayout.GRID, GroupLayout.STACK -> emptyMap()
                     },
                 )
             }

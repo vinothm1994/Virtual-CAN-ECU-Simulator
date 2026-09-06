@@ -9,6 +9,13 @@ ecu:
 
 # Sensible starting values so gauges/setpoints don't sit at zero.
 defaults:
+  # Powered at boot, so the panel opens usable instead of with every control
+  # greyed out behind the power gate. Both sides of the mirror: the request is
+  # what a user would have pressed, and the feedback is what the ECU would
+  # already be reporting — seeding only the request would leave the panel
+  # showing "requested, not applied" until the first tick runs.
+  HvacPowerOnReq: 1.0
+  HvacPowerOn: 1.0
   HvacTempSetDriverReq: 22.0
   HvacTempSetPassengerReq: 22.0
   HvacTempSetDriver: 22.0
@@ -27,49 +34,56 @@ defaults:
 ui:
   - id: power
     title: Power
-    widget: switch
+    widget: toggle
+    icon: power
     request: HvacPowerOnReq
     feedback: HvacPowerOn
 
   - id: ac
     title: A/C
-    widget: switch
+    widget: toggle
+    icon: ac
     request: HvacAcOnReq
     feedback: HvacAcOn
 
   - id: auto
     title: Auto
-    widget: switch
+    widget: toggle
+    icon: auto
     request: HvacAutoOnReq
     feedback: HvacAutoOn
 
   - id: recirc
     title: Recirculate
-    widget: switch
+    widget: toggle
+    icon: recirc
     request: HvacRecircOnReq
     feedback: HvacRecircOn
 
   - id: dual
     title: Dual Zone
-    widget: switch
+    widget: toggle
+    icon: dual
     request: HvacDualOnReq
     feedback: HvacDualOn
 
   - id: maxac
     title: Max A/C
-    widget: switch
+    widget: toggle
+    icon: max_ac
     request: HvacMaxAcOnReq
     feedback: HvacMaxAcOn
 
   - id: defrostFront
     title: Front Defrost
-    widget: switch
+    widget: toggle
+    icon: defrost
     request: HvacDefrosterFrontReq
     feedback: HvacDefrosterFront
 
   - id: fanSpeed
     title: Fan Speed
-    widget: slider
+    widget: segmented
     min: 0
     max: 7
     step: 1
@@ -78,7 +92,9 @@ ui:
 
   - id: fanDirection
     title: Air Distribution
-    widget: dropdown
+    # Segmented, not a dropdown: on a climate panel the available directions
+    # are the information. Labels come from the DBC's VAL_ table.
+    widget: segmented
     request: HvacFanDirectionReq
     feedback: HvacFanDirection
 
@@ -126,6 +142,36 @@ ui:
     min: 0
     max: 4000
     feedback: HvacActualFanRpm
+
+# ---- Panel layout. Members are widget ids from `ui:`; a typo fails at load.
+# The order is a climate panel's: what is on, how warm, where the air goes,
+# and last what the cabin actually reads back.
+groups:
+  - id: climate
+    title: Climate
+    layout: grid
+    columns: 4
+    members: [power, auto, ac, maxac, recirc, dual, defrostFront]
+
+  - id: temperature
+    title: Temperature
+    layout: stack
+    columns: 2
+    members: [driverTemp, passengerTemp]
+
+  - id: airflow
+    title: Airflow
+    layout: stack
+    columns: 1
+    members: [fanSpeed, fanDirection]
+
+  # Readings, not controls. Mixing the two is most of why this panel used to
+  # read as a heap of identical cards.
+  - id: cabin
+    title: Cabin
+    layout: stack
+    columns: 2
+    members: [cabinDriver, cabinPassenger, cabinRearL, cabinRearR, fanRpm]
 
 # ---- ECU behaviour. Requests become feedback; comfort loops ramp/derive.
 rules:

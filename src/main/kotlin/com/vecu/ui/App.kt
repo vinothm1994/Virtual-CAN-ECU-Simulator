@@ -167,8 +167,10 @@ fun App(vm: SimulatorViewModel) {
                                         WidgetGroup(
                                             group = group,
                                             properties = byId,
+                                            values = values,
                                             onPress = { p -> vm.onWidgetPress(p) },
                                             onRelease = { p -> vm.onWidgetRelease(p) },
+                                            onChange = { p, v -> vm.onWidgetChange(p, v) },
                                         )
                                     }
                                 }

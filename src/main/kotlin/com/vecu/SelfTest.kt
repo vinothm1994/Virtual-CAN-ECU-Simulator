@@ -8,6 +8,7 @@ import com.vecu.core.ecu.VirtualEcu
 import com.vecu.core.property.GesturePhase
 import com.vecu.core.property.PropertyManager
 import com.vecu.core.property.WidgetType
+import com.vecu.ui.isGated
 import com.vecu.core.rule.RuleEngine
 import com.vecu.dbc.DbcService
 import kotlinx.coroutines.CoroutineScope
@@ -44,6 +45,31 @@ fun main() {
             "Profile '${p.name}' groups resolve",
             c.groups.all { g -> g.widgetIds.all { it in ids } },
             if (c.groups.isEmpty()) "no groups" else "${c.groups.size} groups",
+        )
+        d.close()
+    }
+
+    // The HVAC panel's gating: every control the ECU forces to 0 while power is
+    // off must know which signal gates it, taken from `rules:` and not from a
+    // second declaration on the widget that could disagree with it.
+    run {
+        val hvacProfile = AppConfig.PROFILES.first { it.name == "HVAC" }
+        val d = DbcService().apply { load(hvacProfile.dbc) }
+        val c = SimConfig.load(hvacProfile.yaml)
+        val props = PropertyManager.build(c.widgets, d.schema, c.rules)
+        fun gateOf(id: String) = props.first { it.id == id }.gateSignal
+        check("HVAC A/C is gated by power", gateOf("ac") == "HvacPowerOn", gateOf("ac").orEmpty())
+        check("HVAC fan speed is gated by power", gateOf("fanSpeed") == "HvacPowerOn")
+        // Power gates the rest; nothing gates power, and the setpoints are
+        // settable before the airflow ever starts.
+        check("HVAC power itself is ungated", gateOf("power") == null)
+        check("HVAC driver setpoint is ungated", gateOf("driverTemp") == null)
+        check("HVAC air distribution is ungated", gateOf("fanDirection") == null)
+        val gatedOff = mapOf("HvacPowerOn" to 0.0)
+        check(
+            "With power off the ECU is forcing A/C off, and the panel says so",
+            props.first { it.id == "ac" }.isGated(gatedOff) &&
+                !props.first { it.id == "power" }.isGated(gatedOff),
         )
         d.close()
     }

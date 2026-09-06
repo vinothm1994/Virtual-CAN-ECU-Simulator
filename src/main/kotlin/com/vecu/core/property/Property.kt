@@ -11,6 +11,22 @@ enum class WidgetType {
     BUTTON,
 
     /**
+     * A latching on/off key: the same face as [MOMENTARY], but it holds its
+     * state instead of reporting a gesture, and lights from its feedback
+     * signal. A climate panel's A/C or RECIRC key, rather than a settings
+     * screen's switch — which is what [SWITCH] renders.
+     */
+    TOGGLE,
+
+    /**
+     * A row of mutually exclusive options, all visible at once. Options come
+     * from the DBC's VAL_ table when the signal has one (air distribution),
+     * or from min/max/step when it does not (fan speed 0..7). A dropdown hides
+     * the choices behind a click; on a control panel they are the point.
+     */
+    SEGMENTED,
+
+    /**
      * A momentary key: it reports a GESTURE rather than holding a value.
      * Pressing it fires one event frame immediately, holding it adds
      * LONG_PRESSED and then REPEAT, and letting go fires RELEASED. Used by the
@@ -68,6 +84,13 @@ data class Property(
     val icon: String? = null,
     /** Colour role for the face: "ok" | "warn" | "error"; null = neutral. */
     val accent: String? = null,
+    /**
+     * Signal that gates this control, resolved from the `gatedBy:` on the rule
+     * that produces [feedbackSignal]. While it reads 0 the ECU forces this
+     * widget's output to 0 whatever the UI says, so the UI says so too.
+     * Derived, never written in the widget: one declaration, in `rules:`.
+     */
+    val gateSignal: String? = null,
 
     // --- MOMENTARY only. Empty/null for every other widget kind. ---
     /** DBC message fired once per gesture step (e.g. "SteeringWheelEvent"). */

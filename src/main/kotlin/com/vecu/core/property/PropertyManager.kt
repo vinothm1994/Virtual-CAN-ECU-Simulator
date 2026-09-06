@@ -1,6 +1,7 @@
 package com.vecu.core.property
 
 import com.vecu.core.config.WidgetSpec
+import com.vecu.core.config.RuleSpec
 import com.vecu.dbc.DbcSchema
 import com.vecu.dbc.SignalInfo
 
@@ -10,10 +11,23 @@ import com.vecu.dbc.SignalInfo
  * the YAML overrides them, so the UI stays truthful to the database.
  */
 object PropertyManager {
-    fun build(widgets: List<WidgetSpec>, schema: DbcSchema): List<Property> =
-        widgets.map { spec -> resolve(spec, schema) }
+    fun build(
+        widgets: List<WidgetSpec>,
+        schema: DbcSchema,
+        rules: List<RuleSpec> = emptyList(),
+    ): List<Property> {
+        // What gates each produced signal, straight out of `rules:` — the UI
+        // must not carry a second copy of that decision, because the two would
+        // eventually disagree and the UI's copy would be the wrong one.
+        val gates = rules.mapNotNull { r ->
+            val to = r.to ?: return@mapNotNull null
+            val gate = r.gatedBy ?: return@mapNotNull null
+            to to gate
+        }.toMap()
+        return widgets.map { spec -> resolve(spec, schema, gates) }
+    }
 
-    private fun resolve(spec: WidgetSpec, schema: DbcSchema): Property {
+    private fun resolve(spec: WidgetSpec, schema: DbcSchema, gates: Map<String, String>): Property {
         // Prefer the request signal's metadata (that is what the control drives),
         // falling back to the feedback signal.
         val sig: SignalInfo? = spec.request?.let { schema.signalInfo[it] }
@@ -40,6 +54,7 @@ object PropertyManager {
             snapZero = spec.snapZero,
             icon = spec.icon,
             accent = spec.accent,
+            gateSignal = spec.feedback?.let { gates[it] },
             eventMessage = spec.event,
             eventSignals = spec.set.mapValues { (signal, written) ->
                 resolveValue(signal, written, schema)
