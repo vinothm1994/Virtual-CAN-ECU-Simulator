@@ -44,6 +44,7 @@ ui:
   - { id: energy,   title: Remaining kWh,     widget: slider, min: 0, max: 120, step: 0.5, request: RemainingEnergyKwh, feedback: RemainingEnergyKwh }
   - { id: range,    title: Battery Range (km), widget: slider, min: 0, max: 700, step: 5, request: EstimatedRangeKm, feedback: EstimatedRangeKm }
   - { id: powerLim, title: Discharge Limit kW, widget: slider, min: 0, max: 255, step: 5, request: PowerLimitDischargeKw, feedback: PowerLimitDischargeKw }
+  - { id: chargeLim, title: Charge Limit kW,   widget: slider, min: 0, max: 255, step: 5, request: PowerLimitChargeKw, feedback: PowerLimitChargeKw }
 
 rules: []
 
