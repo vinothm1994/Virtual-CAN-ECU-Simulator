@@ -21,6 +21,7 @@ class RuleEngine(private val rules: List<RuleSpec>) {
                 "mirror" -> mirror(r, state)
                 "scale" -> scale(r, state)
                 "ramp" -> ramp(r, state)
+                "map" -> map(r, state)
             }
         }
     }
@@ -61,6 +62,17 @@ class RuleEngine(private val rules: List<RuleSpec>) {
             cur > target -> max(cur - rate, target)
             else -> cur
         }
+    }
+
+    private fun map(r: RuleSpec, state: MutableMap<String, Double>) {
+        val from = r.from ?: return
+        val to = r.to ?: return
+        val table = r.table ?: return
+        // No entry for the current value: leave `to` at whatever it already is.
+        // See the `map` doc on RuleSpec for why that's correct here and not a
+        // "should have a default" gap.
+        val v = state[from] ?: return
+        table[v]?.let { state[to] = it }
     }
 
     private fun counter(r: RuleSpec, state: MutableMap<String, Double>) {

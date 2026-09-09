@@ -40,6 +40,15 @@ data class WidgetSpec(
  *  - `ramp`:    `to` moves toward [toward] by [rate] per tick.
  *  - `counter`: `to` increments by [rate] (default 1) per tick and wraps back
  *    to 0 at [wrap] — a rolling alive counter (e.g. `wrap: 16` => 0..15).
+ *  - `map`:     `to = table[from]`, looked up by [from]'s current value. A
+ *    value with no entry in [table] leaves `to` unchanged — unlike every other
+ *    rule type, `map` has no continuous "off" state to fall back to, because a
+ *    command signal like ChargeCmd stays at its last-issued value (see
+ *    charging::Model in the gateway) rather than reverting to 0/none on its
+ *    own. Forcing `to` to some default whenever `from` isn't in the table
+ *    would fight that: the entry a real command corresponds to should win and
+ *    stay won, not get reset by e.g. a mid-session tick where `from` briefly
+ *    reads an untabulated value.
  */
 data class RuleSpec(
     val type: String,
@@ -51,6 +60,7 @@ data class RuleSpec(
     val rate: Double? = null,
     val factor: Double? = null,
     val wrap: Double? = null,
+    val table: Map<Double, Double>? = null,
 )
 
 /**
@@ -208,6 +218,12 @@ data class SimConfig(
                     rate = r["rate"].dbl(),
                     factor = r["factor"].dbl(),
                     wrap = r["wrap"].dbl(),
+                    // snakeyaml gives an untyped Int or Double per entry depending
+                    // on whether the YAML literal had a decimal point, so both key
+                    // and value are normalised to Double here rather than at
+                    // lookup time in RuleEngine.
+                    table = (r["table"] as? Map<Any?, Any?>)?.entries
+                        ?.associate { (it.key as Number).toDouble() to (it.value as Number).toDouble() },
                 )
             }
 

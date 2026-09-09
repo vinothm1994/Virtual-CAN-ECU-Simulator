@@ -12,6 +12,14 @@
 # ChargeLimitPct is mirrored from ChargeLimitReq, because it models the limit the
 # charger has ACCEPTED. To simulate a charger refusing a limit, delete that rule
 # and drive ChargeLimitPct by hand.
+#
+# ChargingState follows ChargeCmd via a value table (map rule), not a mirror:
+# the two signals use unrelated code spaces (ChargeCmd 0=none/1=start/2=stop;
+# ChargingState 0=idle..6=fault), and the gateway holds ChargeCmd at its last
+# value rather than reverting it to 0/none once a session starts (see
+# charging::Model in cluster-can-gateway) — so ChargeCmd=0 must leave
+# ChargingState untouched rather than forcing it back to idle. To simulate a
+# fault/rejected start, delete this rule and drive ChargingState by hand.
 
 ecu:
   name: Charging
@@ -55,6 +63,9 @@ ui:
 rules:
   # The charger accepts the requested limit as-is.
   - { type: mirror, from: ChargeLimitReq, to: ChargeLimitPct }
+  # start -> charging, stop -> idle. 0 (none) has no entry on purpose: see the
+  # header comment above.
+  - { type: map, from: ChargeCmd, to: ChargingState, table: { 1: 2, 2: 0 } }
 
 tx:
 

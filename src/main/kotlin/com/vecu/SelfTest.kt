@@ -198,6 +198,59 @@ fun main() {
     )
     vehDbc.close()
 
+    // --- Charging profile: ChargeCmd -> ChargingState via a `map` rule, not a
+    //     mirror (the two signals use unrelated code spaces). Also proves the
+    //     "no entry leaves `to` unchanged" behaviour: ChargeCmd never reverts
+    //     to 0/none on its own (the gateway holds the last command), so a
+    //     command signal must not be treated like an idle/off state. ---
+    run {
+        val charging = AppConfig.PROFILES.first { it.name == "Charging" }
+        val chgDbc = DbcService().apply { load(charging.dbc) }
+        val chgConfig = SimConfig.load(charging.yaml)
+        val chgEcu = VirtualEcu(chgDbc.schema, RuleEngine(chgConfig.rules), chgConfig.defaults)
+
+        check(
+            "Charging starts idle by default",
+            chgEcu.state.get("ChargingState") == 0.0,
+            "= ${chgEcu.state.get("ChargingState")} (expected 0.0)",
+        )
+
+        fun sendChargeCmd(cmd: Double) {
+            val frame = chgDbc.encode("ChargingControl", mapOf("ChargeCmd" to cmd, "ChargeLimitReq" to 100.0))!!
+            chgDbc.decode(frame)!!.let { chgEcu.onFrame(it) }
+            chgEcu.tick()
+        }
+
+        sendChargeCmd(1.0) // start
+        check(
+            "ChargeCmd=start (1) maps ChargingState to charging (2)",
+            chgEcu.state.get("ChargingState") == 2.0,
+            "= ${chgEcu.state.get("ChargingState")}",
+        )
+
+        sendChargeCmd(2.0) // stop
+        check(
+            "ChargeCmd=stop (2) maps ChargingState to idle (0)",
+            chgEcu.state.get("ChargingState") == 0.0,
+            "= ${chgEcu.state.get("ChargingState")}",
+        )
+
+        // Simulate a fault while a command is still held at a tabulated value —
+        // the map rule must not fight a manual/other-rule change on every tick
+        // just because ChargeCmd is still "start".
+        sendChargeCmd(1.0) // back to charging
+        chgEcu.setSignal("ChargingState", 6.0) // fault, driven by hand
+        chgEcu.tick()
+        check(
+            "map rule re-asserts its table value while ChargeCmd is held",
+            chgEcu.state.get("ChargingState") == 2.0,
+            "= ${chgEcu.state.get("ChargingState")} — by design, see RuleSpec's `map` doc: " +
+                "delete the rule to drive ChargingState by hand instead",
+        )
+
+        chgDbc.close()
+    }
+
     // --- SWC profile: the event path. What is being checked here is that a
     //     gesture becomes a SEQUENCE of frames, and that each one carries the
     //     right code — none of which the state/on-change path can express. ---
